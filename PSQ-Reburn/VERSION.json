@@ -117,8 +117,7 @@
     "game_runtime_tested": false
   },
   "optional_appearance_resources": [
-    "Animated Dragon Wings",
-    "Animated Fairy Wings",
+    "Animated Wings Ultimate",
     "Pei style horns"
   ],
   "source_tests": 262,
@@ -133,7 +132,7 @@
     "source_tests": 262,
     "game_runtime_tested": false
   },
-  "package_revision": 62,
+  "package_revision": 63,
   "display_version": "v0.26",
   "version_relabel": {
     "date": "2026-10-26",
@@ -1064,5 +1063,27 @@
     "native_dll_sha256": "85d1c8c66fda45d21a78bb9d12650e581dcd93209642e7791226c5ebc2795a17",
     "native_source_archive_sha256": "a6fa8bdb2ed1cb9b4648fff3297af3da0708f09a06cb03938519fc4319f59d13",
     "game_runtime_tested": false
+  },
+  "AWU_wings_20261107": {
+    "reference_plugin": "Animated Wings Ultimate.esp",
+    "reference_version": "1.3.0 No Flying Mod Integration",
+    "reference_plugin_sha256": "fa98dc4b1bf168fd9cfc4f84e4750b1cb5bd199bbf73beae23f2a0086af28902",
+    "equippable_wings": 83,
+    "outfit_wing_slots_unchanged": 45,
+    "AWU_native_equipment_slot": 47,
+    "player_base_outfit_choices": 8,
+    "maximum_player_menu_entries": 92,
+    "maximum_NPC_menu_entries": 84,
+    "legacy_dragon_fairy_detection_retired": true,
+    "original_equipment_uses_selected_slot": true,
+    "modified_external_mods": false,
+    "automatic_takeoff_landing_wing_toggle_added": false,
+    "game_runtime_tested": false,
+    "PEX_sha256": {
+      "playersuccubusquestscript.pex": "294891caf7f482b8e8b8c1644068c1fda8f64e036344aeab1e950d9cfb5c8f6d",
+      "playersuccubusmenu.pex": "7c653d487b85b75c8e9fb5504b3a5096fb5726e265a842d934f25dacfc6a5157",
+      "PSQAWUWings.pex": "c126106b308d498da92dfba10bbabd7099fa5e73600717a7dd8472eb5e04b753"
+    },
+    "pending_wing_restore_preserved_on_reenable": true
   }
 }

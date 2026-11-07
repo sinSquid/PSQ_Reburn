@@ -4019,37 +4019,9 @@ Int Function IntegrationOptionFlags(String Plugin)
 EndFunction
 
 Armor[] Function GetPlayerWingChoices(Bool FollowOutfit)
-  Armor[] Wing
-  Int Offset = 0
-  If FollowOutfit
-    Wing = new Armor[19]
-    Int i = 0
-    While i < 8
-      Wing[i] = PSQ.GetOutfitWings(i + 1)
-      i += 1
-    EndWhile
-    Offset = 7
-  Else
-    Wing = new Armor[12]
-    Wing[0] = PSQ.SuccubusStaticWings
-  EndIf
-  If PSQ.CanUseAnimatedDragonWings()
-    Wing[1 + Offset] = PSQ.SuccubusDragonWingsCommon
-    Wing[2 + Offset] = PSQ.SuccubusDragonWingsBoss
-    Wing[3 + Offset] = PSQ.SuccubusDragonWingsForest
-    Wing[4 + Offset] = PSQ.SuccubusDragonWingOdaviing
-    Wing[5 + Offset] = PSQ.SuccubusDragonWingsParthurnax
-    Wing[6 + Offset] = PSQ.SuccubusDragonWingsSnow
-    Wing[7 + Offset] = PSQ.SuccubusDragonWingsTundra
-    Wing[8 + Offset] = PSQ.SuccubusDragonWingsUnderskin
-    Wing[9 + Offset] = PSQ.SuccubusDragonWingsAlduin
-    Wing[10 + Offset] = PSQ.SuccubusDragonWingsBloody
-  EndIf
-  If PSQ.CanUseAnimatedFairyWings()
-    Wing[11 + Offset] = PSQ.SuccubusFairyWings
-  EndIf
-  Return Wing
+  Return PSQAWUWings.BuildChoices(PSQ, FollowOutfit)
 EndFunction
+
 
 String Function GetOutfitWingLabel(Int Selection)
   If Selection == 1
@@ -4083,8 +4055,12 @@ String Function GetPlayerWingSelectionLabel()
     EndIf
     i += 1
   EndWhile
+  If PSQAWUWings.IsAWUWing(PSQ.PSQSuccubusWings)
+    Return PSQAWUWings.WingLabel(PSQ.PSQSuccubusWings)
+  EndIf
   Return PSQ.PSQSuccubusWings.GetName()
 EndFunction
+
 
 Int Function GetManagedAbilityIndex(String Option)
   If Option == "EnableSuccubusDrainHealthSpell"
@@ -4623,12 +4599,12 @@ Function ApplyPlayerWingChoice(Int i, Int Owner, Bool RequireBusy)
     Self.ShowMessage("$PSQ_OutfitUnavailable", False, "$OK", "$Cancel")
     Return
   EndIf
-  If i < 0 || i > 19 || PSQ.IsHenshinchu
+  Armor[] Wing = Self.GetPlayerWingChoices(True)
+  If i < 0 || i > Wing.Length || PSQ.IsHenshinchu || PSQ.IsWingflightAirborne()
     Return 
   EndIf
   Bool WasEnabled = PSQ.HenshinWings
   Armor OldWing = PSQ.PSQSuccubusWings
-  Armor[] Wing = Self.GetPlayerWingChoices(True)
   If i > 0 && !Wing[i - 1]
     Self.ShowMessage("$PSQ_AppearanceWingMissing", False, "$OK", "$Cancel")
     Return 
@@ -4656,7 +4632,11 @@ Function ApplyPlayerWingChoice(Int i, Int Owner, Bool RequireBusy)
         If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
           Return 
         EndIf
-        PSQ.PlayerRef.EquipItem(PSQ.OrgWings as Form, False, True)
+        If !PSQ.TryRestoreTransformOriginalCore(PSQ.OrgWings, PSQ.GetTransformProtectedArmor(), Owner, RequireBusy, True)
+          Self.ShowMessage("$PSQ_EquipmentRecoveryPending", False, "$OK", "$Cancel")
+          Self.SetMenuOptionValueST(Self.GetPlayerWingSelectionLabel(), False, "")
+          Return
+        EndIf
       EndIf
       If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
         Return 
@@ -4664,8 +4644,36 @@ Function ApplyPlayerWingChoice(Int i, Int Owner, Bool RequireBusy)
       PSQ.OrgWings = None
     EndIf
   Else
+    ; A previous disable may still own an unrestored original. Resolve it
+    ; before taking another snapshot, otherwise re-enable loses that backup.
+    If PSQ.IsHenshined && !WasEnabled && PSQ.OrgWings != None
+      If !PSQ.TryRestoreTransformOriginalCore(PSQ.OrgWings, PSQ.GetTransformProtectedArmor(), Owner, RequireBusy, True)
+        Self.ShowMessage("$PSQ_EquipmentRecoveryPending", False, "$OK", "$Cancel")
+        Return
+      EndIf
+      If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
+        Return
+      EndIf
+      PSQ.OrgWings = None
+    EndIf
+    Bool ChangedSlot = OldWing != None && OldWing.GetSlotMask() != Wing[i - 1].GetSlotMask()
+    If PSQ.IsHenshined && WasEnabled && ChangedSlot && PSQ.OrgWings != None
+      If !PSQ.TryRestoreTransformOriginalCore(PSQ.OrgWings, PSQ.GetTransformProtectedArmor(), Owner, RequireBusy, True)
+        ; Preserve the old backup and selection. Only re-equip our old wing
+        ; when no foreign item has taken its slot during the menu operation.
+        If PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy) && PSQAWUWings.GetDisplacedWing(PSQ.PlayerRef, OldWing) == None
+          PSQ.EnsurePlayerTransformEquipment(OldWing, Owner, RequireBusy)
+        EndIf
+        Self.ShowMessage("$PSQ_EquipmentRecoveryPending", False, "$OK", "$Cancel")
+        Return
+      EndIf
+      If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
+        Return
+      EndIf
+      PSQ.OrgWings = None
+    EndIf
     If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
-      Return 
+      Return
     EndIf
     PSQ.PSQSuccubusWings = Wing[i - 1]
     If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
@@ -4673,11 +4681,11 @@ Function ApplyPlayerWingChoice(Int i, Int Owner, Bool RequireBusy)
     EndIf
     PSQ.HenshinWings = True
     If PSQ.IsHenshined
-      If !WasEnabled
+      If !WasEnabled || ChangedSlot
         If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
           Return 
         EndIf
-        Armor PendingAppearanceValue1 = PSQ.PlayerRef.GetWornForm(32768) as Armor
+        Armor PendingAppearanceValue1 = PSQAWUWings.GetDisplacedWing(PSQ.PlayerRef, Wing[i - 1])
         If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
           Return 
         EndIf
@@ -4694,6 +4702,7 @@ Function ApplyPlayerWingChoice(Int i, Int Owner, Bool RequireBusy)
   EndIf
   Self.SetMenuOptionValueST(Self.GetPlayerWingSelectionLabel(), False, "")
 EndFunction
+
 
 Function ApplyPlayerEyeChoice(Int i, Int Owner, Bool RequireBusy)
   If Owner < 0
@@ -5828,45 +5837,79 @@ EndState
 State NPCSwitchWings
 
   Function OnMenuOpenST()
-    String[] Options = new String[12]
+    String WingKey = "PSQ_NPCWingChoices"
+    storageutil.IntListClear(Self, WingKey)
+    storageutil.FormListClear(Self, WingKey + "Forms")
+    storageutil.SetFormValue(Self, WingKey + "Target", SuccubusNPC)
+    Self.SaveOutfitMenuIdentity(WingKey)
     Armor[] Wings = Self.GetPlayerWingChoices(False)
     Int i = 0
     While i < Wings.Length
       If Wings[i] != None
-        Options[i] = Wings[i].GetName()
-      Else
-        Options[i] = "未安装可选翅膀资源"
+        storageutil.IntListAdd(Self, WingKey, i, True)
+        storageutil.FormListAdd(Self, WingKey + "Forms", Wings[i], True)
       EndIf
       i += 1
     EndWhile
-    Options[0] = "$PSQ_OutfitWings"
+    Int Count = storageutil.IntListCount(Self, WingKey)
+    If Count < 1
+      Self.ShowMessage("$PSQ_AppearanceWingMissing", False, "$OK", "$Cancel")
+      Return
+    EndIf
+    String[] Options = PapyrusUtil.StringArray(Count, "")
+    Armor Current = storageutil.GetFormValue(SuccubusNPC, "PSQ_NPCWings", None) as Armor
+    Int Start = 0
+    i = 0
+    While i < Count
+      Int Raw = storageutil.IntListGet(Self, WingKey, i)
+      If Raw == 0
+        Options[i] = "$PSQ_OutfitWings"
+      Else
+        Options[i] = PSQAWUWings.WingLabel(Wings[Raw])
+      EndIf
+      If Current != None && Wings[Raw] == Current
+        Start = i
+      EndIf
+      i += 1
+    EndWhile
     Self.SetMenuDialogOptions(Options)
-    Self.SetMenuDialogStartIndex(0)
+    Self.SetMenuDialogStartIndex(Start)
     Self.SetMenuDialogDefaultIndex(0)
   EndFunction
 
   Function OnMenuAcceptST(Int i)
-    Armor[] Wing = Self.GetPlayerWingChoices(False)
-    If SuccubusNPC == None || i < 0 || i >= Wing.Length || Wing[i] == None
-      Self.ShowMessage("$PSQ_AppearanceWingMissing", False, "$OK", "$Cancel")
-      Return 
+    String WingKey = "PSQ_NPCWingChoices"
+    If SuccubusNPC == None || PSQ.IsWingflightAirborne() || !Self.IsOutfitMenuIdentityCurrent(WingKey) || storageutil.GetFormValue(Self, WingKey + "Target", None) != SuccubusNPC
+      Return
     EndIf
-    Armor NPCWings = storageutil.GetFormValue(SuccubusNPC as Form, "PSQ_NPCWings", None) as Armor
+    If i < 0 || i >= storageutil.IntListCount(Self, WingKey)
+      Return
+    EndIf
+    Armor[] Wing = Self.GetPlayerWingChoices(False)
+    Int Raw = storageutil.IntListGet(Self, WingKey, i)
+    If Raw < 0 || Raw >= Wing.Length
+      Return
+    EndIf
+    If Wing[Raw] == None || storageutil.FormListGet(Self, WingKey + "Forms", i) != Wing[Raw]
+      Self.ShowMessage("$PSQ_AppearanceWingMissing", False, "$OK", "$Cancel")
+      Return
+    EndIf
+    Armor NPCWings = storageutil.GetFormValue(SuccubusNPC, "PSQ_NPCWings", None) as Armor
     Bool HasWings = False
-    If NPCWings != None && SuccubusNPC.GetItemCount(NPCWings as Form) > 0
-      SuccubusNPC.RemoveItem(NPCWings as Form, SuccubusNPC.GetItemCount(NPCWings as Form), True, None)
+    If NPCWings != None && SuccubusNPC.GetItemCount(NPCWings) > 0
+      SuccubusNPC.RemoveItem(NPCWings, SuccubusNPC.GetItemCount(NPCWings), True, None)
       HasWings = True
     EndIf
-    NPCWings = Wing[i]
+    NPCWings = Wing[Raw]
     If HasWings
-      SuccubusNPC.AddItem(NPCWings as Form, 1, True)
-      SuccubusNPC.EquipItem(NPCWings as Form, False, True)
+      SuccubusNPC.AddItem(NPCWings, 1, True)
+      SuccubusNPC.EquipItem(NPCWings, False, True)
     EndIf
-    storageutil.SetFormValue(SuccubusNPC as Form, "PSQ_NPCWings", NPCWings as Form)
-    If i == 0
+    storageutil.SetFormValue(SuccubusNPC, "PSQ_NPCWings", NPCWings)
+    If Raw == 0
       Self.SetMenuOptionValueST("$PSQ_OutfitWings", False, "")
     Else
-      Self.SetMenuOptionValueST(NPCWings.GetName(), False, "")
+      Self.SetMenuOptionValueST(PSQAWUWings.WingLabel(NPCWings), False, "")
     EndIf
   EndFunction
 EndState
@@ -7339,29 +7382,29 @@ Bool Function IsOutfitMenuIdentityCurrent(String Key)
 EndFunction
 
 Function OpenBodyMatchedWingMenu()
-  String Key = "PSQ_WingChoices"
-  storageutil.IntListClear(Self, Key)
-  storageutil.IntListAdd(Self, Key, 0, True)
-  Self.SaveOutfitMenuIdentity(Key)
+  String WingKey = "PSQ_WingChoices"
+  storageutil.IntListClear(Self, WingKey)
+  storageutil.IntListAdd(Self, WingKey, 0, True)
+  Self.SaveOutfitMenuIdentity(WingKey)
   Armor[] Wings = Self.GetPlayerWingChoices(True)
   Int i = 0
   While i < Wings.Length
     If Wings[i] != None && (i >= 8 || PSQ.CanUseTransformOutfitChoice(5, i + 1))
-      storageutil.IntListAdd(Self, Key, i + 1, True)
+      storageutil.IntListAdd(Self, WingKey, i + 1, True)
     EndIf
     i += 1
   EndWhile
-  Int Count = storageutil.IntListCount(Self, Key)
+  Int Count = storageutil.IntListCount(Self, WingKey)
   String[] Options = PapyrusUtil.StringArray(Count, "")
   Options[0] = "$PSQ_WingsSwitchOff"
   Int Start = 0
   i = 1
   While i < Count
-    Int Raw = storageutil.IntListGet(Self, Key, i)
+    Int Raw = storageutil.IntListGet(Self, WingKey, i)
     If Raw <= 8
       Options[i] = Self.GetOutfitWingLabel(Raw)
     Else
-      Options[i] = Wings[Raw - 1].GetName()
+      Options[i] = PSQAWUWings.WingLabel(Wings[Raw - 1])
     EndIf
     If PSQ.HenshinWings && Wings[Raw - 1] == PSQ.GetTransformPartArmor(5)
       Start = i
@@ -7372,3 +7415,4 @@ Function OpenBodyMatchedWingMenu()
   Self.SetMenuDialogStartIndex(Start)
   Self.SetMenuDialogDefaultIndex(0)
 EndFunction
+

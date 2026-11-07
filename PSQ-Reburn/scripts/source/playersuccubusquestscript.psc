@@ -9877,11 +9877,13 @@ Function InvalidateNPCEnergyThrallCache()
 EndFunction
 
 Bool Function CanUseAnimatedDragonWings()
-  Return miscutil.FileExists("Data/meshes/[Anton] mods/Animated Dragon Wings/AnimatedDragonWings.nif") && miscutil.FileExists("Data/textures/[Anton] mods/Animated Dragon Wings/Dragon.dds")
+  ; Retained for old saves; standalone dragon wings are replaced by AWU.
+  Return False
 EndFunction
 
 Bool Function CanUseAnimatedFairyWings()
-  Return Self.IsIntegrationPluginLoaded("Animated Fairy Wings.esp") && miscutil.FileExists("Data/meshes/[Anton] mods/Animated Fairy Wings/AnimatedFairyWings.nif")
+  ; Retained for old saves; standalone fairy wings are replaced by AWU.
+  Return False
 EndFunction
 
 Function ResolveOptionalWingSelection()
@@ -10102,7 +10104,7 @@ Bool Function SaveTransformEquipment(Int Owner, Bool RequireBusy)
     If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
       Return False
     EndIf
-    OrgWings = PlayerRef.GetWornForm(32768) as Armor
+    OrgWings = PSQAWUWings.GetDisplacedWing(PlayerRef, Self.GetTransformPartArmor(5))
   EndIf
   Armor CapturedTail = PlayerRef.GetWornForm(1024) as Armor
   Bool CapturedTemporaryTail = Self.IsPSQTransformTail(CapturedTail)
@@ -17397,10 +17399,7 @@ Bool Function CanUseTransformOutfitChoice(Int Part, Int Choice)
 EndFunction
 
 Bool Function IsBodyIndependentTransformWing(Armor Item)
-  If Item == None
-    Return False
-  EndIf
-  Return Item == SuccubusDragonWingsCommon || Item == SuccubusDragonWingsBoss || Item == SuccubusDragonWingsForest || Item == SuccubusDragonWingOdaviing || Item == SuccubusDragonWingsParthurnax || Item == SuccubusDragonWingsSnow || Item == SuccubusDragonWingsTundra || Item == SuccubusDragonWingsUnderskin || Item == SuccubusDragonWingsAlduin || Item == SuccubusDragonWingsBloody || Item == SuccubusFairyWings
+  Return PSQAWUWings.IsAWUWing(Item)
 EndFunction
 
 Armor Function ResolveTransformEquipmentItem(Armor Item, Int Part)
