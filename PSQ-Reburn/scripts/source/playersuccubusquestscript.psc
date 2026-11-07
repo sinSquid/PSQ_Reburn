@@ -735,7 +735,7 @@ ImageSpaceModifier Property SuccubusNightEyeImod Auto
 ImageSpaceModifier Property SuccubusNightEyeIntroFXImod Auto
 ImageSpaceModifier Property SuccubusNightEyeOutroFXImod Auto
 Float Property SuccubusNightEyeStrength = 0.5 Auto hidden
-Int Property SuccubusOutfitSelection = 4 Auto hidden
+Int Property SuccubusOutfitSelection = 2 Auto hidden
 Spell Property SuccubusRaiseArousalSpell Auto
 GlobalVariable Property SuccubusRank Auto
 Spell Property SuccubusRapeVictimDebuffSpell Auto
@@ -2539,8 +2539,8 @@ Function PSQReloadCore(Int LoadEpoch)
     EndIf
     Return
   EndIf
-  If SuccubusOutfitSelection == 0
-    Self.ApplySuccubusOutfitSelection(4)
+  If True
+    Self.MigrateRetiredOutfitSelections()
     If !Self.IsPSQLoadCurrent(LoadEpoch)
       Return
     EndIf
@@ -5624,29 +5624,10 @@ String Function GetDrainedSkillName(String Skill)
 EndFunction
 
 String Function GetSuccubusOutfitName(Int Selection)
-  If Selection == 100
-    Return "$PSQ_OutfitHarryTERA"
-  EndIf
-  If Selection == 0
-    Return "$PSQ_OutfitName4"
-  ElseIf Selection == 1
-    Return "$PSQ_OutfitName1"
-  ElseIf Selection == 2
+  If Selection == 2
     Return "$PSQ_OutfitName2"
-  ElseIf Selection == 3
-    Return "$PSQ_OutfitName3"
-  ElseIf Selection == 4
-    Return "$PSQ_OutfitName4"
-  ElseIf Selection == 5
-    Return "$PSQ_OutfitName5"
-  ElseIf Selection == 6
-    Return "$PSQ_OutfitName6"
-  ElseIf Selection == 7
-    Return "$PSQ_OutfitName7"
-  ElseIf Selection == 8
-    Return "$PSQ_OutfitName8"
   EndIf
-  Return "$PSQ_OutfitName4"
+  Return "$PSQ_OutfitUnavailable"
 EndFunction
 
 Bool Function ApplySuccubusOutfitSelection(Int Selection)
@@ -5673,10 +5654,12 @@ Bool Function ApplySuccubusOutfitSelectionCore(Int Selection, Int Owner, Bool Re
     Debug.Notification("$PSQ_GTAppearanceBusy")
     Return False
   EndIf
-  If Selection == 0
-    Selection = 4
+  If Selection < 0 || (Selection > 8 && Selection != 100)
+    Return False
   EndIf
-  If IsHenshinchu || Selection < 0 || Selection > 8
+  ; Retired saved outfit choices migrate to Helena without renumbering it.
+  Selection = 2
+  If IsHenshinchu
     Return False
   EndIf
   If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
@@ -5703,7 +5686,7 @@ Bool Function ApplySuccubusOutfitSelectionCore(Int Selection, Int Owner, Bool Re
     Return False
   EndIf
   Armor Next5 = Self.GetCachedOutfitPart(Selection, 5, Owner, RequireBusy)
-  If PSQSuccubusWings != None
+  If PSQAWUWings.IsAWUWing(PSQSuccubusWings)
     Next5 = PSQSuccubusWings
   EndIf
   ; Only enabled body clothing needs a compatible record. Optional accessories
@@ -6139,410 +6122,71 @@ Function ApplyPSQOutfitBodyModels(Bool UsePreset, Int Owner, Bool RequireBusy)
   ElseIf AppearanceEditBusy
     RequireBusy = True
   EndIf
-  If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  If !Self.IsAppearanceOperationCurrent(Owner, RequireBusy) || PSQOutfitModelsNormalized
     Return
   EndIf
-  If PSQOutfitModelsNormalized
+  Int LoadEpoch = PSQLoadEpoch
+  If !Self.HasExternalOutfitSource(2)
     Return
   EndIf
-  Self.ClearBorrowedHarryTeraParts()
-  Int ShinanoLoadEpoch = PSQLoadEpoch
-  String ShinanoRoot = "PSQ\\Outfits\\Set08\\"
-  If Self.HasShinanoOutfitSource()
-    ShinanoRoot = "PSQ\\ExternalOutfits\\Shinano\\"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  String AgehaRoot = "PSQ\\Outfits\\Set08\\"
-  If Self.HasExternalOutfitSource(4)
-    AgehaRoot = "PSQ\\ExternalOutfits\\Ageha\\"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  String VampireRoot = "PSQ\\Outfits\\Set08\\"
-  If Self.HasExternalOutfitSource(7)
-    VampireRoot = "PSQ\\ExternalOutfits\\Vampire\\"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  String DragonPrincessRoot = "PSQ\\Outfits\\Set08\\"
-  If Self.HasExternalOutfitSource(3)
-    DragonPrincessRoot = "PSQ\\ExternalOutfits\\DragonPrincess\\"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  String TERA9DMRoot = "PSQ\\Outfits\\Set08\\"
-  If Self.HasExternalOutfitSource(5)
-    TERA9DMRoot = "PSQ\\ExternalOutfits\\TERA9DM\\"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  String DXRoot = "PSQ\\Outfits\\Set08\\"
-  If Self.HasExternalOutfitSource(1)
-    DXRoot = "PSQ\\ExternalOutfits\\DX\\"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  String HelenaRoot = "PSQ\\Outfits\\Set08\\"
-  If Self.HasExternalOutfitSource(2)
-    HelenaRoot = "PSQ\\ExternalOutfits\\Helena\\"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  UsePreset = False
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(3455, 4, "boots", AgehaRoot + "boots_1.nif", "", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(3456, 4, "cuirass", AgehaRoot + "cuirass_1.nif", AgehaRoot + "cuirass_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(3457, 4, "gloves", AgehaRoot + "gloves_1.nif", AgehaRoot + "gloves_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40834, 1, "cuirass", DXRoot + "cuirass_1.nif", DXRoot + "cuirass_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40836, 1, "boots", DXRoot + "boots_1.nif", "", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40838, 1, "gloves", DXRoot + "gloves_1.nif", DXRoot + "gloves_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40846, 2, "cuirass", HelenaRoot + "cuirass_1.nif", HelenaRoot + "cuirass_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40848, 2, "boots", HelenaRoot + "boots_1.nif", "", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40850, 2, "gloves", HelenaRoot + "gloves_1.nif", HelenaRoot + "gloves_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40858, 3, "cuirass", DragonPrincessRoot + "cuirass_1.nif", DragonPrincessRoot + "cuirass_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40860, 3, "boots", DragonPrincessRoot + "boots_1.nif", "", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40862, 3, "gloves", DragonPrincessRoot + "gloves_1.nif", DragonPrincessRoot + "gloves_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40870, 4, "cuirass", AgehaRoot + "cuirass_1.nif", AgehaRoot + "cuirass_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40872, 4, "boots", AgehaRoot + "boots_1.nif", "", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40874, 4, "gloves", AgehaRoot + "gloves_1.nif", AgehaRoot + "gloves_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40882, 5, "cuirass", TERA9DMRoot + "cuirass_1.nif", TERA9DMRoot + "cuirass_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40884, 5, "boots", TERA9DMRoot + "boots_1.nif", "", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40886, 5, "gloves", TERA9DMRoot + "gloves_1.nif", TERA9DMRoot + "gloves_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40894, 6, "cuirass", ShinanoRoot + "cuirass_1.nif", ShinanoRoot + "cuirass_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40896, 6, "boots", ShinanoRoot + "boots_1.nif", "", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40898, 6, "gloves", ShinanoRoot + "gloves_1.nif", ShinanoRoot + "gloves_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40906, 7, "cuirass", VampireRoot + "cuirass_1.nif", VampireRoot + "cuirass_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40908, 7, "boots", VampireRoot + "boots_1.nif", "", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40910, 7, "gloves", VampireRoot + "gloves_1.nif", VampireRoot + "gloves_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40918, 8, "cuirass", "PSQ\\Outfits\\Set08\\cuirass_1.nif", "PSQ\\Outfits\\Set08\\cuirass_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40920, 8, "boots", "PSQ\\Outfits\\Set08\\boots_1.nif", "", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  String Root = "PSQ\\ExternalOutfits\\Helena\\"
+  If LoadEpoch != PSQLoadEpoch || !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
     Return
   EndIf
-  Self.SetPSQOutfitBodyModel(40922, 8, "gloves", "PSQ\\Outfits\\Set08\\gloves_1.nif", "PSQ\\Outfits\\Set08\\gloves_1.nif", UsePreset, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  Self.SetPSQOutfitBodyModel(40846, 2, "cuirass", Root + "cuirass_1.nif", Root + "cuirass_1.nif", False, Owner, RequireBusy)
+  If LoadEpoch != PSQLoadEpoch || !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
     Return
   EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  Self.SetPSQOutfitBodyModel(40848, 2, "boots", Root + "boots_1.nif", "", False, Owner, RequireBusy)
+  If LoadEpoch != PSQLoadEpoch || !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
     Return
   EndIf
-  Self.SetPSQOutfitBodyModel(40900, 6, "horns", ShinanoRoot + "horns_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  Self.SetPSQOutfitBodyModel(40850, 2, "gloves", Root + "gloves_1.nif", Root + "gloves_1.nif", False, Owner, RequireBusy)
+  If LoadEpoch != PSQLoadEpoch || !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
     Return
   EndIf
-  Self.SetPSQOutfitBodyModel(40902, 6, "tail", ShinanoRoot + "tail_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  Self.SetPSQOutfitBodyModel(40852, 2, "horns", Root + "horns_1.nif", "", False, Owner, RequireBusy)
+  If LoadEpoch != PSQLoadEpoch || !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
     Return
   EndIf
-  Self.SetPSQOutfitBodyModel(40904, 6, "wings", ShinanoRoot + "wings_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  Self.SetPSQOutfitBodyModel(40854, 2, "tail", Root + "tail_1.nif", "", False, Owner, RequireBusy)
+  If LoadEpoch != PSQLoadEpoch || !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
     Return
   EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40840, 1, "horns", DXRoot + "horns_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40842, 1, "tail", DXRoot + "tail_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40844, 1, "wings", DXRoot + "wings_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40852, 2, "horns", HelenaRoot + "horns_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40854, 2, "tail", HelenaRoot + "tail_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40856, 2, "wings", HelenaRoot + "wings_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40876, 4, "horns", AgehaRoot + "horns_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40878, 4, "tail", AgehaRoot + "tail_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40880, 4, "wings", AgehaRoot + "wings_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40912, 7, "horns", VampireRoot + "horns_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40914, 7, "tail", VampireRoot + "tail_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40916, 7, "wings", VampireRoot + "wings_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Bool HarryReady = Self.HasExternalOutfitSource(100)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  String HarryPath0 = "PSQ\\Outfits\\Set08\\cuirass_1.nif"
-  If HarryReady
-    HarryPath0 = "PSQ\\ExternalOutfits\\TERAHarry\\Corset_1.nif"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45072, 100, "cuirass", HarryPath0, HarryPath0, False, Owner, RequireBusy)
-  String HarryPath1 = ""
-  If HarryReady
-    HarryPath1 = "PSQ\\ExternalOutfits\\TERAHarry\\Collar_1.nif"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45073, 100, "cuirass", HarryPath1, HarryPath1, False, Owner, RequireBusy)
-  String HarryPath2 = ""
-  If HarryReady
-    HarryPath2 = "PSQ\\ExternalOutfits\\TERAHarry\\Garter_1.nif"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45074, 100, "cuirass", HarryPath2, HarryPath2, False, Owner, RequireBusy)
-  String HarryPath3 = ""
-  If HarryReady
-    HarryPath3 = "PSQ\\ExternalOutfits\\TERAHarry\\Panty_1.nif"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45075, 100, "cuirass", HarryPath3, HarryPath3, False, Owner, RequireBusy)
-  String HarryPath4 = "PSQ\\Outfits\\Set08\\boots_1.nif"
-  If HarryReady
-    HarryPath4 = "PSQ\\ExternalOutfits\\TERAHarry\\Boots_1.nif"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45076, 100, "boots", HarryPath4, HarryPath4, False, Owner, RequireBusy)
-  String HarryPath5 = ""
-  If HarryReady
-    HarryPath5 = "PSQ\\ExternalOutfits\\TERAHarry\\Stockings_1.nif"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45077, 100, "boots", HarryPath5, HarryPath5, False, Owner, RequireBusy)
-  String HarryPath6 = "PSQ\\Outfits\\Set08\\gloves_1.nif"
-  If HarryReady
-    HarryPath6 = "PSQ\\ExternalOutfits\\TERAHarry\\Gauntlets_1.nif"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45078, 100, "gloves", HarryPath6, HarryPath6, False, Owner, RequireBusy)
-  String HarryPath7 = "PSQ\\Outfits\\Set08\\tail_1.nif"
-  If HarryReady
-    HarryPath7 = "PSQ\\ExternalOutfits\\TERAHarry\\Tail_1.nif"
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45079, 100, "tail", HarryPath7, HarryPath7, False, Owner, RequireBusy)
-  String HarryPath8 = ""
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45080, 100, "horns", HarryPath8, HarryPath8, False, Owner, RequireBusy)
-  String HarryPath9 = ""
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(45081, 100, "wings", HarryPath9, HarryPath9, False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40864, 3, "horns", DragonPrincessRoot + "horns_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40866, 3, "tail", DragonPrincessRoot + "tail_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40868, 3, "wings", DragonPrincessRoot + "wings_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40888, 5, "horns", TERA9DMRoot + "horns_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40890, 5, "tail", TERA9DMRoot + "tail_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
-  EndIf
-  Self.SetPSQOutfitBodyModel(40892, 5, "wings", TERA9DMRoot + "wings_1.nif", "", False, Owner, RequireBusy)
-  If ShinanoLoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-    Return
+  Self.SetPSQOutfitBodyModel(40856, 2, "wings", Root + "wings_1.nif", "", False, Owner, RequireBusy)
+  If LoadEpoch == PSQLoadEpoch && Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
+    PSQOutfitModelsNormalized = True
   EndIf
-  PSQOutfitModelsNormalized = True
 EndFunction
 
 Function SetPSQOutfitBodyModel(Int FormID, Int OutfitID, String Part, String OriginalThird, String OriginalFirst, Bool UsePreset, Int Owner, Bool RequireBusy)
-  ArmorAddon Addon
+  If OutfitID != 2 || FormID < 40846 || FormID > 40856 || (FormID - 40846) % 2 != 0
+    Return
+  EndIf
   If Owner < 0
     Owner = AppearanceOperationId
     RequireBusy = AppearanceEditBusy
   ElseIf AppearanceEditBusy
     RequireBusy = True
   EndIf
-  If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  If !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
     Return
   EndIf
-  Int CacheIndex = -1
-  If FormID >= 3455 && FormID <= 3457
-    CacheIndex = FormID - 3455
-  ElseIf FormID >= 40834 && FormID <= 40922
-    Int Offset = FormID - 40834
-    Int PartOffset = Offset % 12
-    If PartOffset == 0 || PartOffset == 2 || PartOffset == 4
-      CacheIndex = 3 + Offset / 12 * 3 + PartOffset / 2
-    EndIf
-  EndIf
-  If !PSQOutfitAddonCache
-    If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-      Return
-    EndIf
-    PSQOutfitAddonCache = new ArmorAddon[27]
-  EndIf
-  If CacheIndex >= 0 && CacheIndex < 27
-    Addon = PSQOutfitAddonCache[CacheIndex]
-    If !Addon
-      Addon = Game.GetFormFromFile(FormID, "PSQ PlayerSuccubusQuest.esm") as ArmorAddon
-      If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-        Return
-      EndIf
-      PSQOutfitAddonCache[CacheIndex] = Addon
-    EndIf
-  Else
-    Addon = Game.GetFormFromFile(FormID, "PSQ PlayerSuccubusQuest.esm") as ArmorAddon
-  EndIf
-  If !Addon
+  ArmorAddon Addon = Game.GetFormFromFile(FormID, "PSQ PlayerSuccubusQuest.esm") as ArmorAddon
+  If Addon == None || !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
     Return
   EndIf
-  String Third = OriginalThird
-  String First = OriginalFirst
-  If Addon.GetModelPath(False, True) != Third
-    If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  If Addon.GetModelPath(False, True) != OriginalThird
+    If !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
       Return
     EndIf
-    Addon.SetModelPath(Third, False, True)
+    Addon.SetModelPath(OriginalThird, False, True)
   EndIf
-  If (First != "" || OutfitID == 100) && Addon.GetModelPath(True, True) != First
-    If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  If OriginalFirst != "" && Addon.GetModelPath(True, True) != OriginalFirst
+    If !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
       Return
     EndIf
-    Addon.SetModelPath(First, True, True)
+    Addon.SetModelPath(OriginalFirst, True, True)
   EndIf
 EndFunction
 
@@ -9978,16 +9622,13 @@ Bool Function GTSoftbodyOwnsAppearance()
 EndFunction
 
 Armor Function GetOutfitWings(Int Selection)
-  If Selection == -1
-    Selection = SuccubusOutfitSelection
+  If Selection == -1 || Selection == 0
+    Selection = 2
   EndIf
-  If Selection == 100
-    Return Self.GetCachedOutfitPart(100, 5, -1, False)
+  If Selection != 2
+    Return None
   EndIf
-  If Selection < 1 || Selection > 8
-    Selection = 4
-  EndIf
-  Return Self.GetCachedOutfitPart(Selection, 5, -1, False)
+  Return Self.GetCachedOutfitPart(2, 5, -1, False)
 EndFunction
 
 Bool Function IsOutfitWing(Armor Wing)
@@ -10635,31 +10276,13 @@ Armor Function GetCachedOutfitPart(Int Selection, Int Part, Int Owner, Bool Requ
   ElseIf AppearanceEditBusy
     RequireBusy = True
   EndIf
-  If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+  If !Self.IsAppearanceOperationCurrent(Owner, RequireBusy) || Part < 0 || Part > 5
     Return None
   EndIf
-  If psqracecompatibility.IsUBEActor(PlayerRef)
-    If Selection == 0
-      Selection = 4
-    EndIf
-    Return PSQDXUBE.GetOutfitPart(PlayerRef, Selection, Part)
-  EndIf
-  If Selection == 100
-    If Part == 3 || Part == 5
-      Return None
-    EndIf
-    If Part < 0 || Part > 5
-      Return None
-    EndIf
-    Return Game.GetFormFromFile(45056 + Part, "PSQ PlayerSuccubusQuest.esm") as Armor
-  EndIf
-  If Selection == 0
-    Selection = 4
-  EndIf
-  If Part == 3 && Selection > 8
+  If Part == 3 && Selection > 8 && Selection != 100 && !PSQRaceCompatibility.IsUBEActor(PlayerRef)
     Self.EnsureOptionalHornCatalog()
     Int External = Selection - 9
-    If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
+    If !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
       Return None
     EndIf
     If OptionalHornCatalogReady && External >= 0 && External < OptionalHornCount
@@ -10667,28 +10290,13 @@ Armor Function GetCachedOutfitPart(Int Selection, Int Part, Int Owner, Bool Requ
     EndIf
     Return None
   EndIf
-  If Selection < 1 || Selection > 8 || Part < 0 || Part > 5
+  If Selection != 2 || !Self.HasExternalOutfitSource(2)
     Return None
   EndIf
-  If !TransformOutfitCache
-    If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-      Return None
-    EndIf
-    TransformOutfitCache = new Armor[48]
+  If !Self.IsAppearanceOperationCurrent(Owner, RequireBusy)
+    Return None
   EndIf
-  Int Index = (Selection - 1) * 6 + Part
-  Armor Item = TransformOutfitCache[Index]
-  If Item == None
-    Int Revision = AppearanceCacheRevision
-    Item = Game.GetFormFromFile(40835 + (Selection - 1) * 12 + Part * 2, "PSQ PlayerSuccubusQuest.esm") as Armor
-    If Revision == AppearanceCacheRevision
-      If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
-        Return None
-      EndIf
-      TransformOutfitCache[Index] = Item
-    EndIf
-  EndIf
-  Return Item
+  Return PSQDXUBE.GetOutfitPart(PlayerRef, 2, Part)
 EndFunction
 
 Function EnsureTransformBodyCatalog(Int Owner, Bool RequireBusy)
@@ -12149,38 +11757,29 @@ Bool Function GetTransformPartEnabled(Int Part)
 EndFunction
 
 Function EnsureTransformPartSources()
-  If TransformPartSources as Bool && TransformPartSources.Length == 5
-    Return
+  If !TransformPartSources || TransformPartSources.Length != 5
+    TransformPartSources = new Int[5]
+    Int NewPart = 0
+    While NewPart < 5
+      TransformPartSources[NewPart] = 2
+      NewPart += 1
+    EndWhile
   EndIf
-  Int[] Choices = new Int[5]
   Int Part = 0
   While Part < 5
-    Int Fallback = SuccubusOutfitSelection
-    If Fallback < 1 || Fallback > 8
-      Fallback = 4
-    EndIf
-    Choices[Part] = Fallback
-    Armor Current = Self.GetTransformPartArmor(Part)
-    Int set = 1
-    While set <= 8
-      If Current != None && Current == Self.GetCachedOutfitPart(set, Part, -1, False)
-        Choices[Part] = set
-        set = 8
-      EndIf
-      set += 1
-    EndWhile
-    If Current != None && Current == Self.GetCachedOutfitPart(100, Part, -1, False)
-      Choices[Part] = 100
+    Int Choice = TransformPartSources[Part]
+    Bool OptionalHorn = Part == 3 && Choice > 8 && Choice != 100 && Choice - 9 < Self.GetOptionalHornCount()
+    If Choice != 0 && Choice != 2 && !OptionalHorn
+      TransformPartSources[Part] = 2
     EndIf
     Part += 1
   EndWhile
-  TransformPartSources = Choices
 EndFunction
 
 Int Function GetTransformPartSource(Int Part)
   Self.EnsureTransformPartSources()
   If Part < 0 || Part > 4
-    Return 4
+    Return 2
   EndIf
   If Part == 3 && OptionalHornSelectedKey != ""
     Self.EnsureOptionalHornCatalog()
@@ -12202,15 +11801,11 @@ Int Function GetTransformPartSelection(Int Part)
 EndFunction
 
 Bool Function SetIndependentTransformPart(Int Part, Int Choice)
-  ; Shinano is now original-only. Reject before acquiring the appearance lock.
+  ; Only Helena and independent optional horns remain selectable.
   If Choice > 0 && !Self.CanUseTransformOutfitChoice(Part, Choice)
     Return False
   EndIf
-  Int Limit = 8
-  If Part == 3
-    Limit += Self.GetOptionalHornCount()
-  EndIf
-  If Part < 0 || Part > 4 || Choice < 0 || (Choice > Limit && Choice != 100) || !Self.BeginAppearanceEdit()
+  If Part < 0 || Part > 4 || Choice < 0 || !Self.BeginAppearanceEdit()
     Return False
   EndIf
   Int Owner = AppearanceOperationId
@@ -12238,7 +11833,7 @@ Bool Function SetIndependentTransformPart(Int Part, Int Choice)
     If Owner != AppearanceOperationId || (True as Bool && !AppearanceEditBusy)
       Return False
     EndIf
-    If Choice <= 8 || Choice == 100
+    If Choice == 2
       TransformPartSources[Part] = Choice
     EndIf
   EndIf
@@ -14072,16 +13667,12 @@ Int Function GetOptionalHornCount()
 EndFunction
 
 String Function GetIndependentTransformPartName(Int Part, Int Choice)
-  If Choice == 100
-    Return "$PSQ_OutfitHarryTERA"
-  EndIf
-  If Part == 3 && Choice > 8
+  If Part == 3 && Choice > 8 && Choice != 100
     Self.EnsureOptionalHornCatalog()
     Int Index = Choice - 9
     If OptionalHornCatalogReady && Index >= 0 && Index < OptionalHornCount
       Return OptionalHornNames[Index]
     EndIf
-    Return "$PSQ_OutfitUnavailable"
   EndIf
   Return Self.GetSuccubusOutfitName(Choice)
 EndFunction
@@ -15643,138 +15234,31 @@ EndFunction
 
 ; External Shinano uses PSQ's proven six-piece assembly and slots. No foreign records are edited.
 Bool Function HasShinanoOutfitSource()
-  String Plugin = "gui-SucubusSister Shinano.esp"
-  If !Self.IsIntegrationPluginLoaded(Plugin)
-    Return False
-  EndIf
-  Int[] Forms = new Int[10]
-  Forms[0] = 2055
-  Forms[1] = 2053
-  Forms[2] = 2049
-  Forms[3] = 2051
-  Forms[4] = 2057
-  Forms[5] = 2059
-  Forms[6] = 2061
-  Forms[7] = 2063
-  Forms[8] = 2065
-  Forms[9] = 2067
-  Int Index = 0
-  While Index < Forms.Length
-    If !(Game.GetFormFromFile(Forms[Index], Plugin) as Armor)
-      Return False
-    EndIf
-    Index += 1
-  EndWhile
-  String[] Parts = new String[6]
-  Parts[0] = "cuirass"
-  Parts[1] = "boots"
-  Parts[2] = "gloves"
-  Parts[3] = "horns"
-  Parts[4] = "tail"
-  Parts[5] = "wings"
-  Index = 0
-  While Index < Parts.Length
-    String Stem = "Data/meshes/PSQ/ExternalOutfits/Shinano/" + Parts[Index]
-    If !miscutil.FileExists(Stem + "_0.nif") || !miscutil.FileExists(Stem + "_1.nif") || !miscutil.FileExists(Stem + ".tri")
-      Return False
-    EndIf
-    Index += 1
-  EndWhile
-  Return miscutil.FileExists("Data/meshes/PSQ/ExternalOutfits/Shinano/physics/Cuirass.xml") && miscutil.FileExists("Data/meshes/PSQ/ExternalOutfits/Shinano/physics/glove.xml") && miscutil.FileExists("Data/meshes/PSQ/ExternalOutfits/Shinano/physics/gloves.xml") && miscutil.FileExists("Data/meshes/PSQ/ExternalOutfits/Shinano/physics/Horns.xml") && miscutil.FileExists("Data/meshes/PSQ/ExternalOutfits/Shinano/physics/Tail.xml") && miscutil.FileExists("Data/meshes/PSQ/ExternalOutfits/Shinano/physics/Wings.xml") && miscutil.FileExists("Data/meshes/SucubusSister Shinano/upper.xml")
+  ; Retained API for old saves; retired outfit detection performs no I/O.
+  Return False
 EndFunction
 
 String Function GetShinanoOutfitSourceStatus()
-  If !Self.IsIntegrationPluginLoaded("gui-SucubusSister Shinano.esp")
-    Return "原作未启用：第六套不可选"
-  EndIf
-  If !Self.HasShinanoOutfitSource()
-    Return "原作资源不完整：第六套不可选"
-  EndIf
-  Return "已接入原作：沿用PSQ搭配与槽位"
+  Return "$PSQ_OutfitUnavailable"
 EndFunction
 
 ; Keep six hidden PSQ equipment records while detecting the standalone sources.
 Bool Function HasExternalOutfitSource(Int Outfit)
-  If Outfit == 6
-    Return Self.HasShinanoOutfitSource()
-  EndIf
-  String Plugin = ""
-  String Root = ""
-  Int[] Forms
-  If Outfit == 1
-    Plugin = "DX Succubus Armor.esp"
-    Root = "Data/meshes/PSQ/ExternalOutfits/DX/"
-    Forms = new Int[10]
-    Forms[0] = 2067
-    Forms[1] = 2069
-    Forms[2] = 2061
-    Forms[3] = 2064
-    Forms[4] = 2060
-    Forms[5] = 2063
-    Forms[6] = 2062
-    Forms[7] = 2065
-    Forms[8] = 2066
-    Forms[9] = 2068
-  ElseIf Outfit == 2
-    Plugin = "Helena Succubus [SE].esp"
-    Root = "Data/meshes/PSQ/ExternalOutfits/Helena/"
-    Forms = new Int[8]
-    Forms[0] = 2052
-    Forms[1] = 2053
-    Forms[2] = 2058
-    Forms[3] = 2061
-    Forms[4] = 2066
-    Forms[5] = 2069
-    Forms[6] = 3430
-    Forms[7] = 3431
-  ElseIf Outfit == 3
-    Plugin = "BBP_Dragon_Princess.esp"
-    Root = "Data/meshes/PSQ/ExternalOutfits/DragonPrincess/"
-    Forms = new Int[4]
-    Forms[0] = 11250948
-    Forms[1] = 11250949
-    Forms[2] = 11250950
-    Forms[3] = 11250964
-  ElseIf Outfit == 5
-    Plugin = "TR9DmRxSS_HR.esp"
-    Root = "Data/meshes/PSQ/ExternalOutfits/TERA9DM/"
-    Forms = new Int[6]
-    Forms[0] = 3433
-    Forms[1] = 3434
-    Forms[2] = 3435
-    Forms[3] = 4814
-    Forms[4] = 10331
-    Forms[5] = 11711
-  ElseIf Outfit == 4
-    Plugin = "C5Kev's Ageha Abyss Armor.esp"
-    Root = "Data/meshes/PSQ/ExternalOutfits/Ageha/"
-    Forms = new Int[6]
-    Forms[0] = 2053
-    Forms[1] = 2054
-    Forms[2] = 2055
-    Forms[3] = 2056
-    Forms[4] = 2060
-    Forms[5] = 2065
-  ElseIf Outfit == 7
-    Plugin = "(SSE) SW vampire.esp"
-    Root = "Data/meshes/PSQ/ExternalOutfits/Vampire/"
-    Forms = new Int[5]
-    Forms[0] = 3430
-    Forms[1] = 3429
-    Forms[2] = 3431
-    Forms[3] = 3432
-    Forms[4] = 3497
-  ElseIf Outfit == 100
-    Return Self.HasHarryTeraSource()
-  Else
+  If Outfit != 2 || !Self.IsIntegrationPluginLoaded("Helena Succubus [SE].esp")
     Return False
   EndIf
-  If !Self.IsIntegrationPluginLoaded(Plugin)
-    Return False
-  EndIf
+  Int[] Forms = new Int[8]
+  Forms[0] = 2052
+  Forms[1] = 2053
+  Forms[2] = 2058
+  Forms[3] = 2061
+  Forms[4] = 2066
+  Forms[5] = 2069
+  Forms[6] = 3430
+  Forms[7] = 3431
   Int Index = 0
   While Index < Forms.Length
-    If !(Game.GetFormFromFile(Forms[Index], Plugin) as Armor)
+    If !(Game.GetFormFromFile(Forms[Index], "Helena Succubus [SE].esp") as Armor)
       Return False
     EndIf
     Index += 1
@@ -15788,97 +15272,31 @@ Bool Function HasExternalOutfitSource(Int Outfit)
   Parts[5] = "wings"
   Index = 0
   While Index < Parts.Length
-    If !miscutil.FileExists(Root + Parts[Index] + "_0.nif") || !miscutil.FileExists(Root + Parts[Index] + "_1.nif") || !miscutil.FileExists(Root + Parts[Index] + ".tri")
+    String Root = "Data/meshes/PSQ/ExternalOutfits/Helena/" + Parts[Index]
+    If !MiscUtil.FileExists(Root + "_0.nif") || !MiscUtil.FileExists(Root + "_1.nif") || !MiscUtil.FileExists(Root + ".tri")
       Return False
     EndIf
     Index += 1
   EndWhile
-  If !miscutil.FileExists(Root + "physics/Tail.xml")
-    Return False
-  EndIf
-  If Outfit == 3
-    Return miscutil.FileExists(Root + "physics/Wings.xml")
-  EndIf
-  If Outfit == 1
-    Return miscutil.FileExists(Root + "physics/Cuirass1.xml") && miscutil.FileExists(Root + "physics/Wings.xml")
-  EndIf
-  Return True
+  Return MiscUtil.FileExists("Data/meshes/PSQ/ExternalOutfits/Helena/physics/Tail.xml")
 EndFunction
 
 String Function GetExternalOutfitSourceStatus(Int Outfit)
-  String Plugin = "DX Succubus Armor.esp"
-  If Outfit == 2
-    Plugin = "Helena Succubus [SE].esp"
-  ElseIf Outfit == 3
-    Plugin = "BBP_Dragon_Princess.esp"
-  ElseIf Outfit == 5
-    Plugin = "TR9DmRxSS_HR.esp"
-  ElseIf Outfit == 4
-    Plugin = "C5Kev's Ageha Abyss Armor.esp"
-  ElseIf Outfit == 7
-    Plugin = "(SSE) SW vampire.esp"
-  ElseIf Outfit == 100
-    Plugin = "TeraSuccubusArmor.esp"
-  ElseIf Outfit == 6
-    Return Self.GetShinanoOutfitSourceStatus()
-  ElseIf Outfit != 1
-    Return "不属于原作接入套装"
+  If Outfit != 2
+    Return "$PSQ_OutfitUnavailable"
   EndIf
-  If !Self.IsIntegrationPluginLoaded(Plugin)
-    Return "原作未启用：对应套装不可选"
+  If !Self.IsIntegrationPluginLoaded("Helena Succubus [SE].esp")
+    Return "Helena source plugin is not enabled"
   EndIf
-  If !Self.HasExternalOutfitSource(Outfit)
-    Return "原作或适配资源不完整：对应套装不可选"
+  If !Self.HasExternalOutfitSource(2)
+    Return "Helena source or adapter resources are incomplete"
   EndIf
-  Return "已接入原作：六部件独立替换"
+  Return "Helena six-part adapter is available"
 EndFunction
 
 Bool Function HasHarryTeraSource()
-  String Plugin = "TeraSuccubusArmor.esp"
-  If !Self.IsIntegrationPluginLoaded(Plugin)
-    Return False
-  EndIf
-  Int[] Forms = new Int[8]
-  Forms[0] = 2048
-  Forms[1] = 2049
-  Forms[2] = 2050
-  Forms[3] = 2051
-  Forms[4] = 2064
-  Forms[5] = 2065
-  Forms[6] = 2066
-  Forms[7] = 2067
-  Int i = 0
-  While i < Forms.Length
-    If !(Game.GetFormFromFile(Forms[i], Plugin) as Armor)
-      Return False
-    EndIf
-    i += 1
-  EndWhile
-  String[] Parts = new String[8]
-  Parts[0] = "Corset"
-  Parts[1] = "Collar"
-  Parts[2] = "Garter"
-  Parts[3] = "Panty"
-  Parts[4] = "Boots"
-  Parts[5] = "Stockings"
-  Parts[6] = "Gauntlets"
-  Parts[7] = "Tail"
-  i = 0
-  While i < Parts.Length
-    String Root = "Data/meshes/PSQ/ExternalOutfits/TERAHarry/" + Parts[i]
-    If !miscutil.FileExists(Root + "_0.nif") || !miscutil.FileExists(Root + "_1.nif") || !miscutil.FileExists(Root + ".tri")
-      Return False
-    EndIf
-    i += 1
-  EndWhile
-  i = 0
-  While i < 6
-    If !(Game.GetFormFromFile(45056 + i, "PSQ PlayerSuccubusQuest.esm") as Armor)
-      Return False
-    EndIf
-    i += 1
-  EndWhile
-  Return True
+  ; Retained API for old saves; retired outfit detection performs no I/O.
+  Return False
 EndFunction
 
 Function SetTransformHairColorEnabled(Bool Enabled, Int Owner, Bool RequireBusy)
@@ -16850,26 +16268,7 @@ Bool Function SyncTRXFutaClothing(Actor Target)
 EndFunction
 
 Function ClearBorrowedHarryTeraParts()
-  Armor BorrowedHorn = Game.GetFormFromFile(45059, "PSQ PlayerSuccubusQuest.esm") as Armor
-  Armor BorrowedWing = Game.GetFormFromFile(45061, "PSQ PlayerSuccubusQuest.esm") as Armor
-  If PSQSuccubusHorns == BorrowedHorn && BorrowedHorn != None
-    PSQSuccubusHorns = None
-    HenshinHorn = False
-    OptionalHornSelectedKey = ""
-    If TransformPartSources && TransformPartSources.Length == 5
-      TransformPartSources[3] = 0
-    EndIf
-    If PlayerRef != None && PlayerRef.IsEquipped(BorrowedHorn)
-      PlayerRef.UnequipItem(BorrowedHorn, False, True)
-    EndIf
-  EndIf
-  If PSQSuccubusWings == BorrowedWing && BorrowedWing != None
-    PSQSuccubusWings = None
-    HenshinWings = False
-    If PlayerRef != None && PlayerRef.IsEquipped(BorrowedWing)
-      PlayerRef.UnequipItem(BorrowedWing, False, True)
-    EndIf
-  EndIf
+  ; Retired outfit records remain only for save/restore compatibility.
 EndFunction
 
 Bool Function HasExternalBodyChangeNG()
@@ -17365,16 +16764,24 @@ EndFunction
 
 
 Bool Function CanUseTransformOutfitChoice(Int Part, Int Choice)
-  If Choice == 0
-    Return True
-  EndIf
   If Part < 0 || Part > 5
     Return False
   EndIf
-  Bool UBE = psqracecompatibility.IsUBEActor(PlayerRef)
-  If UBE
-    Armor Item = PSQDXUBE.GetOutfitPart(PlayerRef, Choice, Part)
-    If Item == None || Item.GetNumArmorAddons() < 1
+  If Choice == 0
+    Return True
+  EndIf
+  If Part == 3 && Choice > 8 && Choice != 100
+    Return Self.GetCachedOutfitPart(Choice, Part, -1, False) != None
+  EndIf
+  If Choice != 2 || !Self.HasExternalOutfitSource(2)
+    Return False
+  EndIf
+  Armor Item = Self.GetCachedOutfitPart(2, Part, -1, False)
+  If Item == None
+    Return False
+  EndIf
+  If PSQRaceCompatibility.IsUBEActor(PlayerRef)
+    If Item.GetNumArmorAddons() < 1
       Return False
     EndIf
     ArmorAddon Addon = Item.GetNthArmorAddon(0)
@@ -17382,20 +16789,9 @@ Bool Function CanUseTransformOutfitChoice(Int Part, Int Choice)
       Return False
     EndIf
     String Model = Addon.GetModelPath(False, True)
-    Return Model != "" && miscutil.FileExists("Data/meshes/" + Model)
+    Return Model != "" && MiscUtil.FileExists("Data/meshes/" + Model)
   EndIf
-  If Choice >= 1 && Choice <= 7 || Choice == 100
-    If !Self.HasExternalOutfitSource(Choice)
-      Return False
-    EndIf
-  ElseIf Choice == 8
-    If !miscutil.FileExists("Data/meshes/PSQ/Outfits/Set08/cuirass_1.nif")
-      Return False
-    EndIf
-  ElseIf Part != 3
-    Return False
-  EndIf
-  Return Self.GetCachedOutfitPart(Choice, Part, -1, False) != None
+  Return True
 EndFunction
 
 Bool Function IsBodyIndependentTransformWing(Armor Item)
@@ -17408,6 +16804,11 @@ Armor Function ResolveTransformEquipmentItem(Armor Item, Int Part)
   EndIf
   If (Part == 5 || Part < 0) && Self.IsBodyIndependentTransformWing(Item)
     Return Item
+  EndIf
+  ; Direct plan/equip callers must obey the same provider gate as the menu
+  ; and catalogue, including an old transformed save whose fields are retained.
+  If PSQDXUBE.GetItemSelection(Item) == 2 && !Self.HasExternalOutfitSource(2)
+    Return None
   EndIf
   If Part < 0
     If psqracecompatibility.IsUBEActor(PlayerRef)
@@ -17802,4 +17203,77 @@ EndFunction
 
 Bool Function IsPSQSceneStampCurrent(Int TID, Int Serial, Int Generation, Int Epoch)
   Return TID >= 0 && Epoch == PSQSexSceneEpoch && Serial == FastModeSceneSerial && Generation == FastModeCallbackGeneration && PPlusThreadID == TID
+EndFunction
+
+
+Function MigrateRetiredOutfitSelections()
+  Int Owner = AppearanceOperationId
+  Int LoadEpoch = PSQLoadEpoch
+  Self.EnsureTransformPartSources()
+  SuccubusOutfitSelection = 2
+  ; Existing transformed equipment retains its exact exit references. The
+  ; NPC entry guard rejects retired selections until the old form is exited.
+  If IsHenshined || AppearanceRecoveryPending || AppearanceEditBusy || IsHenshinchu
+    Return
+  EndIf
+  Armor[] Parts = new Armor[6]
+  Int Part = 0
+  While Part < 5
+    Parts[Part] = Self.GetCachedOutfitPart(Self.GetTransformPartSource(Part), Part, Owner, False)
+    If LoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || AppearanceEditBusy || IsHenshinchu || IsHenshined || AppearanceRecoveryPending
+      Return
+    EndIf
+    Part += 1
+  EndWhile
+  If PSQAWUWings.IsAWUWing(PSQSuccubusWings)
+    Parts[5] = PSQSuccubusWings
+  Else
+    Parts[5] = Self.GetOutfitWings(2)
+  EndIf
+  If LoadEpoch != PSQLoadEpoch || Owner != AppearanceOperationId || AppearanceEditBusy || IsHenshinchu || IsHenshined || AppearanceRecoveryPending
+    Return
+  EndIf
+  PSQSuccubusCuirass = Parts[0]
+  PSQSuccubusBoots = Parts[1]
+  PSQSuccubusGauntlets = Parts[2]
+  PSQSuccubusHorns = Parts[3]
+  PSQSuccubusTail = Parts[4]
+  PSQSuccubusWings = Parts[5]
+  Self.ApplyPSQOutfitBodyModels(False, Owner, False)
+EndFunction
+
+
+Bool Function CanUseNPCTransformOutfit()
+  Armor[] Parts = new Armor[6]
+  Parts[0] = PSQSuccubusCuirass
+  Parts[1] = PSQSuccubusBoots
+  Parts[2] = PSQSuccubusGauntlets
+  Parts[3] = PSQSuccubusHorns
+  Parts[4] = PSQSuccubusTail
+  Parts[5] = PSQSuccubusWings
+  Bool NeedsHelena = False
+  Int Part = 0
+  While Part < Parts.Length
+    Armor Item = Parts[Part]
+    If Item != None && !(Part == 5 && PSQAWUWings.IsAWUWing(Item))
+      Int Selection = PSQDXUBE.GetItemSelection(Item)
+      If Selection != 0 && Selection != 2
+        Return False
+      EndIf
+      If Selection == 2
+        NeedsHelena = True
+      EndIf
+    EndIf
+    Part += 1
+  EndWhile
+  If NeedsHelena
+    If AppearanceEditBusy || IsHenshinchu || AppearanceRecoveryPending || !Self.HasExternalOutfitSource(2)
+      Return False
+    EndIf
+    Self.ApplyPSQOutfitBodyModels(False, -1, False)
+    If !PSQOutfitModelsNormalized
+      Return False
+    EndIf
+  EndIf
+  Return True
 EndFunction

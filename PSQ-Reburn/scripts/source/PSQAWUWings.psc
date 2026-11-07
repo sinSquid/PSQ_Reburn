@@ -16,13 +16,11 @@ Armor[] Function BuildChoices(playersuccubusquestscript PSQ, Bool FollowOutfit) 
     Else
       Wings = new Armor[8]
     EndIf
-    Int i = 0
-    While i < 8
-      If PSQ != None
-        Wings[i] = PSQ.GetOutfitWings(i + 1)
-      EndIf
-      i += 1
-    EndWhile
+    ; Preserve the reserved raw slots so saved AWU indices 9..91 stay stable.
+    ; Helena is the only remaining clothing provider, retaining raw choice 2.
+    If PSQ != None && PSQ.CanUseTransformOutfitChoice(5, 2)
+      Wings[1] = PSQ.GetOutfitWings(2)
+    EndIf
   Else
     If Available
       Wings = new Armor[84]
@@ -30,7 +28,9 @@ Armor[] Function BuildChoices(playersuccubusquestscript PSQ, Bool FollowOutfit) 
       Wings = new Armor[1]
     EndIf
     If PSQ != None
-      Wings[0] = PSQ.SuccubusStaticWings
+      If PSQ.CanUseTransformOutfitChoice(5, 2)
+        Wings[0] = PSQ.GetOutfitWings(2)
+      EndIf
     EndIf
   EndIf
   If Available

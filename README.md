@@ -47,21 +47,15 @@ PSQ Reburn 是《上古卷轴 V：天际特别版》的魅魔系统模组，基�
 
 ## 服装下载
 
-以下服装可以按喜好选择，不需要全部安装。部分页面可能需要登录或开启成人内容显示。
+当前服装逻辑只接入 **Helena Succubus**，检测插件 `Helena Succubus [SE].esp`。其他套装已从当前菜单、独立插件检测及变身服装解析中退役；不再使用 Hiroshi／Set08 备用服装。历史资源和记录保留用于兼容与恢复旧存档。
 
 | 服装 | 下载页面或查找线索 | 安装提示 |
 | --- | --- | --- |
-| DX Succubus | [SE 原版](https://www.nexusmods.com/skyrimspecialedition/mods/36642) · [CBBE 版](https://www.nexusmods.com/skyrimspecialedition/mods/36619) · [UBE 版](https://www.nexusmods.com/skyrimspecialedition/mods/116652) | 选择与身体匹配的版本。 |
 | Helena Succubus | [服装页面](https://rektas.wixsite.com/website/post/helena-succubus) | 选择适合自己身体的 SE 版本。 |
-| Dragon Princess | [SE 3BF 版本线索](https://schaken-mods.com/forums/topic/32100-se-dragon-princess-3bf-bs/) | 这是相关移植版线索，作者原址尚未核实；请确认下载的版本与 PSQ 兼容。 |
-| Ageha Abyss | 原址待核实 | 请留意版本和下载来源。 |
-| TERA Succubus 9DM | [相关 SE 版本](https://schaken-mods.com/file/tera-succubus-9dm-se) | 该页面的版本是否与 PSQ 接入版本完全一致尚待确认；请勿与下方 Harry TERA 混淆。 |
-| SucubusSister Shinano | [lilyrim 发布页面](https://www.patreon.com/u11199437/posts/free-shinano-117275572) | 按页面说明安装所需身体及物理前置。 |
-| SW Vampire | [相关页面线索](https://arca.live/b/tullius/96130274) | 页面目前无法直接核实，请确认服装版本。 |
-| Hirosin X Succubus | [原帖线索](https://arca.live/b/tullius/90058800) · [服装资料](https://modbooru.com/mods/x-succubus-set.1670) | PSQ 使用单独的 Hiroshi／X 魅魔资源包作为备用外观；该资源包不包含在本次下载中。 |
-| TERA Succubus Armor（Harry TERA） | [作者页面](https://www.patreon.com/posts/tera-succubus-18130754) · [SE 移植页面](https://www.daymarrworkshop.com/post/tera-succubus-armor-cbbe-tbd-se) | 原版与 SE 移植版请按页面要求选择；不要与 TERA Succubus 9DM 混淆。 |
 
 装好服装后，可以在 PSQ 的 MCM 兼容页面查看是否识别。使用 BodySlide 时，选择与身体相同的预设，构建对应的 PSQ 服装，并勾选 **Build Morphs（建立变形）**。
+
+Helena 缺失时不切换到其他套装；UBE 需要对应的 Helena 转换记录与模型。AWU 独立翅膀及可选角饰仍保留，不受服装目录精简影响。
 
 ## MO2 推荐排序
 

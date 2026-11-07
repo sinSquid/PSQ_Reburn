@@ -3692,7 +3692,7 @@ Function DrawCompatibilityPage()
   Self.AddMenuOptionST("RaceAppearancePolicy", "种族外观策略", Self.GetRaceAppearanceModeLabel(), 0)
   Self.AddTextOptionST("RaceAppearanceInfo", "当前外观处理", psqracecompatibility.GetAppearanceStatus(PSQ.PlayerRef), 0)
   Self.CompatibilityRow("UBE 种族身形", psqracecompatibility.HasUBE())
-  Self.CompatibilityRow("DX魅魔 UBE 服装适配", PSQDXUBE.GetRawPart(0) != None)
+  Self.CompatibilityRow("Helena UBE 服装适配", PSQDXUBE.GetConvertedPart(2, 0) != None)
   If psqracecompatibility.IsUBEActor(PSQ.PlayerRef)
     Self.AddTextOption("UBE 变身身形", "Body Change 专用预设", 1)
     Self.AddTextOption("UBE 身体与皮肤", "保留当前模型、贴图和附件", 1)
@@ -3730,19 +3730,12 @@ Function DrawCompatibilityPage()
   Self.CompatibilityRow("Wingflight／OSYRN（飞行控制）", PSQ.HasWingflight())
   Self.AddTextOption("飞行接口状态", PSQ.GetWingflightStatus(), 1)
   Self.AddTextOptionST("OSYRNFlightInfo", "OSYRN 飞行适配", PSQ.GetOSYRNFlightCompatibilityInfo(), 0)
-  Self.CompatibilityRow("Animated Fairy Wings", PSQ.CanUseAnimatedFairyWings())
-  Self.CompatibilityRow("Animated Dragon Wings 资源", PSQ.CanUseAnimatedDragonWings())
-  Self.AddTextOption("DX魅魔原作适配", PSQ.GetExternalOutfitSourceStatus(1), 1)
+  Self.CompatibilityRow("Animated Wings Ultimate", PSQAWUWings.IsAvailable())
   Self.AddTextOption("海伦娜原作适配", PSQ.GetExternalOutfitSourceStatus(2), 1)
-  Self.AddTextOptionST("ShinanoOutfitInfo", "信浓魅魔原作适配", PSQ.GetShinanoOutfitSourceStatus(), 0)
-  Self.AddTextOption("凤蝶深渊适配", PSQ.GetExternalOutfitSourceStatus(4), 1)
-  Self.AddTextOption("SW吸血鬼适配", PSQ.GetExternalOutfitSourceStatus(7), 1)
-  Self.AddTextOption("TERA魅魔适配", PSQ.GetExternalOutfitSourceStatus(100), 1)
-  Self.AddTextOption("龙之公主适配", PSQ.GetExternalOutfitSourceStatus(3), 1)
-  Self.AddTextOption("TERA魅魔2适配", PSQ.GetExternalOutfitSourceStatus(5), 1)
   Self.AddHeaderOption("$PSQ_CompatScope", 0)
   Self.AddTextOption("$PSQ_CompatUnverified", "$PSQ_CompatManual", 1)
 EndFunction
+
 
 String Function GetPlayerRaceName()
   Race Current = PSQ.PlayerRef.GetRace()
@@ -4024,42 +4017,26 @@ EndFunction
 
 
 String Function GetOutfitWingLabel(Int Selection)
-  If Selection == 1
-    Return "$PSQ_OutfitWing1"
-  ElseIf Selection == 2
+  If Selection == 2
     Return "$PSQ_OutfitWing2"
-  ElseIf Selection == 3
-    Return "$PSQ_OutfitWing3"
-  ElseIf Selection == 4
-    Return "$PSQ_OutfitWing4"
-  ElseIf Selection == 5
-    Return "$PSQ_OutfitWing5"
-  ElseIf Selection == 6
-    Return "$PSQ_OutfitWing6"
-  ElseIf Selection == 7
-    Return "$PSQ_OutfitWing7"
-  ElseIf Selection == 8
-    Return "$PSQ_OutfitWing8"
   EndIf
   Return "$PSQ_WingsSwitchOff"
 EndFunction
 
+
 String Function GetPlayerWingSelectionLabel()
-  If !PSQ.HenshinWings || !PSQ.PSQSuccubusWings
+  If !PSQ.HenshinWings || PSQ.PSQSuccubusWings == None
     Return "$PSQ_WingsSwitchOff"
   EndIf
-  Int i = 1
-  While i <= 8
-    If PSQ.PSQSuccubusWings == PSQ.GetOutfitWings(i)
-      Return Self.GetOutfitWingLabel(i)
-    EndIf
-    i += 1
-  EndWhile
+  If PSQ.PSQSuccubusWings == PSQ.GetOutfitWings(2)
+    Return Self.GetOutfitWingLabel(2)
+  EndIf
   If PSQAWUWings.IsAWUWing(PSQ.PSQSuccubusWings)
     Return PSQAWUWings.WingLabel(PSQ.PSQSuccubusWings)
   EndIf
-  Return PSQ.PSQSuccubusWings.GetName()
+  Return "$PSQ_WingsSwitchOff"
 EndFunction
+
 
 
 Int Function GetManagedAbilityIndex(String Option)
@@ -4917,42 +4894,42 @@ String Function GetIndependentPartLabel(Int Part)
 EndFunction
 
 Function OpenIndependentPartMenu(Int Part)
-  String Key = "PSQ_PartChoice" + Part
-  storageutil.IntListClear(Self, Key)
-  storageutil.IntListAdd(Self, Key, 0, True)
-  Self.SaveOutfitMenuIdentity(Key)
-  Int Limit = 8
+  String ChoiceKey = "PSQ_PartChoice" + Part
+  storageutil.IntListClear(Self, ChoiceKey)
+  storageutil.IntListAdd(Self, ChoiceKey, 0, True)
+  Self.SaveOutfitMenuIdentity(ChoiceKey)
+  If PSQ.CanUseTransformOutfitChoice(Part, 2)
+    storageutil.IntListAdd(Self, ChoiceKey, 2, True)
+  EndIf
   If Part == 3 && !psqracecompatibility.IsUBEActor(PSQ.PlayerRef)
-    Limit += PSQ.GetOptionalHornCount()
+    Int i = 9
+    Int Limit = 8 + PSQ.GetOptionalHornCount()
+    While i <= Limit
+      If i != 100 && PSQ.CanUseTransformOutfitChoice(Part, i)
+        storageutil.IntListAdd(Self, ChoiceKey, i, True)
+      EndIf
+      i += 1
+    EndWhile
   EndIf
-  Int i = 1
-  While i <= Limit
-    If PSQ.CanUseTransformOutfitChoice(Part, i)
-      storageutil.IntListAdd(Self, Key, i, True)
-    EndIf
-    i += 1
-  EndWhile
-  If Part != 3 && PSQ.CanUseTransformOutfitChoice(Part, 100)
-    storageutil.IntListAdd(Self, Key, 100, True)
-  EndIf
-  Int Count = storageutil.IntListCount(Self, Key)
+  Int Count = storageutil.IntListCount(Self, ChoiceKey)
   String[] Options = PapyrusUtil.StringArray(Count, "")
   Options[0] = "$PSQ_PartSwitchOff"
   Int Selected = PSQ.GetTransformPartSelection(Part)
   Int Start = 0
-  i = 1
-  While i < Count
-    Int Source = storageutil.IntListGet(Self, Key, i)
-    Options[i] = PSQ.GetIndependentTransformPartName(Part, Source)
+  Int Index = 1
+  While Index < Count
+    Int Source = storageutil.IntListGet(Self, ChoiceKey, Index)
+    Options[Index] = PSQ.GetIndependentTransformPartName(Part, Source)
     If Source == Selected
-      Start = i
+      Start = Index
     EndIf
-    i += 1
+    Index += 1
   EndWhile
   Self.SetMenuDialogOptions(Options)
   Self.SetMenuDialogStartIndex(Start)
   Self.SetMenuDialogDefaultIndex(0)
 EndFunction
+
 
 Function AcceptIndependentPartMenu(Int Part, Int Choice)
   If Choice > 0
@@ -6952,7 +6929,7 @@ EndState
 
 State ShinanoOutfitInfo
   Event OnHighlightST()
-    SetInfoText("检测gui-SucubusSister Shinano.esp及适配资源。第六套沿用PSQ上衣组合、六部位独立选择与原槽位；原作目录不放补丁。旧PSQ第六套已移除；原作未启用或资源不完整时不可选择，旧保存配置临时使用默认服装。更新或停用原作后需重启游戏并读档。")
+    Self.SetInfoText("此服装适配已退役；当前仅保留海伦娜套装。")
   EndEvent
 EndState
 
