@@ -1248,50 +1248,80 @@ EndFunction
 
 Function PSQEndSex(Form FormRef, Int TID)
   Int SceneEpoch = PSQSexSceneEpoch
+  Int SceneSerial = FastModeSceneSerial
+  Int SceneGeneration = FastModeCallbackGeneration
   If UninstallPrepared || UninstallCleanupBusy || SexLab == None
     Return
   EndIf
-  If PlayerIsSuccubus.GetValue() == 1.0
-    sslthreadcontroller Thread = SexLab.GetController(TID)
-    If Thread == None
+  If !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch) || PlayerIsSuccubus.GetValue() != 1.0
+    Return
+  EndIf
+  sslthreadcontroller Thread = SexLab.GetController(TID)
+  If Thread == None
+    Return
+  EndIf
+  Actor[] actors = Thread.Positions
+  If !actors || actors.find(PlayerRef, 0) < 0
+    Return
+  EndIf
+  Bool IsPPlus = Self.IsSexLabPPlus()
+  If IsPPlus
+    If PPlusSceneClosed
       Return
     EndIf
-    sslbaseanimation animation = Thread.animation
-    Actor[] actors = Thread.Positions
-    If Self.IsSexLabPPlus()
-      Utility.Wait(0.200000003)
-      Int EndWaits = 0
-      While (PPlusSettlementBusy || PPlusCallbacksPending > 0) && EndWaits < 200
-        Utility.Wait(0.100000001)
-        EndWaits += 1
-      EndWhile
-      If PPlusThreadID == TID
-        PPlusSceneClosed = True
-      EndIf
-      If PPlusSettlementBusy || PPlusCallbacksPending > 0
-        Debug.Trace("[PSQ SLCompat] P+ end wait expired: tid=" + TID as String, 0)
-      EndIf
-    EndIf
-    If SceneEpoch != PSQSexSceneEpoch
+    Utility.Wait(0.200000003)
+    If UninstallPrepared || UninstallCleanupBusy || !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
       Return
     EndIf
-    Int NumberOfActors = actors.Length
-    Int i = actors.Length - 1
-    While i >= 0
-      actors[i].RemoveSpell(SuccubusRapeVictimDebuffSpell)
-      actors[i].RemoveFromFaction(PSQRapeNoAttackFaction)
-      If actors[i] != PlayerRef
-        If SceneEpoch != PSQSexSceneEpoch
-          Return
-        EndIf
-        Self.FlushDeferredDrain(actors[i], TID)
+    Int EndWaits = 0
+    While (PPlusSettlementBusy || PPlusCallbacksPending > 0) && EndWaits < 200
+      Utility.Wait(0.100000001)
+      If UninstallPrepared || UninstallCleanupBusy || !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
       EndIf
-      i -= 1
+      EndWaits += 1
     EndWhile
-    PlayerRef.RemoveSpell(PSQLureCastSpell)
-    If FishCount > 1
-      Self.Fishery()
+    If UninstallPrepared || UninstallCleanupBusy || !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch) || PPlusSceneClosed
+      Return
     EndIf
+    PPlusSceneClosed = True
+    If PPlusSettlementBusy || PPlusCallbacksPending > 0
+      Debug.Trace("[PSQ SLCompat] P+ end wait expired: tid=" + TID as String, 0)
+    EndIf
+  EndIf
+  If UninstallPrepared || UninstallCleanupBusy || !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+    Return
+  EndIf
+  Int i = actors.Length - 1
+  While i >= 0
+    Actor Target = actors[i]
+    If Target != None
+      If UninstallPrepared || UninstallCleanupBusy || !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      Target.RemoveSpell(SuccubusRapeVictimDebuffSpell)
+      If UninstallPrepared || UninstallCleanupBusy || !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      Target.RemoveFromFaction(PSQRapeNoAttackFaction)
+      If UninstallPrepared || UninstallCleanupBusy || !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      If Target != PlayerRef
+        Self.FlushDeferredDrain(Target, TID)
+      EndIf
+    EndIf
+    i -= 1
+  EndWhile
+  If UninstallPrepared || UninstallCleanupBusy || !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+    Return
+  EndIf
+  PlayerRef.RemoveSpell(PSQLureCastSpell)
+  If UninstallPrepared || UninstallCleanupBusy || !Self.IsPSQSceneStampCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+    Return
+  EndIf
+  If FishCount > 0
+    Self.Fishery()
   EndIf
 EndFunction
 
@@ -1730,48 +1760,103 @@ Function SuccubusLevelUp(Float value)
 EndFunction
 
 Function Fishery()
-  If FishCount > 0
-    Slots = sslutility.PushActor(PlayerRef, Slots)
-    Int j = 0
-    While j < 4
-      uilistmenu ListMenu = uiextensions.GetMenu("uilistmenu", True) as uilistmenu
+  Int Epoch = PSQSexSceneEpoch
+  Int Serial = FastModeSceneSerial
+  Int Generation = FastModeCallbackGeneration
+  If PlayerRef == None || SexLab == None || UninstallPrepared || UninstallCleanupBusy
+    Return
+  EndIf
+  Self.ResetSlots()
+  Actor[] InitialSlots = sslutility.PushActor(PlayerRef, Slots)
+  If Epoch != PSQSexSceneEpoch || Serial != FastModeSceneSerial || Generation != FastModeCallbackGeneration || UninstallPrepared || UninstallCleanupBusy
+    Return
+  EndIf
+  Slots = InitialSlots
+  Self.CompactFishCandidates()
+  Bool Cancelled = False
+  Bool Finished = False
+  While !Finished && Slots.Length < 5 && FishCount > 0
+    If Epoch != PSQSexSceneEpoch || Serial != FastModeSceneSerial || Generation != FastModeCallbackGeneration || UninstallPrepared || UninstallCleanupBusy
+      Return
+    EndIf
+    uilistmenu ListMenu = uiextensions.GetMenu("uilistmenu", True) as uilistmenu
+    If ListMenu == None
+      Cancelled = True
+      Finished = True
+    Else
       ListMenu.ResetMenu()
       ListMenu.AddEntryItem("End", -1, -1, False)
-      Int i = 0
-      While i < FishCount
-        ListMenu.AddEntryItem(Fish[i].GetLeveledActorBase().GetName(), -1, -1, False)
-        i += 1
-      EndWhile
-      ListMenu.OpenMenu(None, None)
-      Int Ret = ListMenu.GetResultInt()
-      If Ret == -1 || Ret == 0
-        j = 666
-      Else
-        Slots = sslutility.PushActor(Fish[Ret - 1], Slots)
-        Fish[Ret - 1] = None
-      EndIf
-      If FishCount != 1
-        i = 0
-        Int k = 0
-        While i < FishCount
-          If Fish[k] != None
-            Fish[k] = Fish[i]
-            k += 1
+      Actor[] MenuActors = new Actor[128]
+      Int MenuCount = 0
+      Int Index = 0
+      While Index < FishCount && Index < Fish.Length
+        Actor Candidate = Fish[Index]
+        If Candidate != None
+          ActorBase CandidateBase = Candidate.GetLeveledActorBase()
+          If CandidateBase != None
+            MenuActors[MenuCount] = Candidate
+            ListMenu.AddEntryItem(CandidateBase.GetName(), -1, -1, False)
+            MenuCount += 1
           EndIf
-          i += 1
-        EndWhile
+        EndIf
+        Index += 1
+      EndWhile
+      If MenuCount == 0
+        Finished = True
       Else
-        j = 666
+        ListMenu.OpenMenu(None, None)
+        Int Result = ListMenu.GetResultInt()
+        If Epoch != PSQSexSceneEpoch || Serial != FastModeSceneSerial || Generation != FastModeCallbackGeneration || UninstallPrepared || UninstallCleanupBusy
+          Return
+        EndIf
+        If Result < 0
+          Cancelled = True
+          Finished = True
+        ElseIf Result == 0
+          Finished = True
+        ElseIf Result > MenuCount
+          Cancelled = True
+          Finished = True
+        Else
+          Actor Chosen = MenuActors[Result - 1]
+          Index = 0
+          While Index < FishCount && Index < Fish.Length
+            If Fish[Index] == Chosen
+              Fish[Index] = None
+            EndIf
+            Index += 1
+          EndWhile
+          If Chosen != None
+            ActorBase ChosenBase = Chosen.GetLeveledActorBase()
+            If ChosenBase != None
+              Int ValidationResult = SexLab.ValidateActor(Chosen)
+              If Epoch != PSQSexSceneEpoch || Serial != FastModeSceneSerial || Generation != FastModeCallbackGeneration || UninstallPrepared || UninstallCleanupBusy
+                Return
+              EndIf
+              If ValidationResult == 1 && !Chosen.HasKeywordString("SexLabActive") && Slots.find(Chosen, 0) < 0
+                Actor[] UpdatedSlots = sslutility.PushActor(Chosen, Slots)
+                If Epoch != PSQSexSceneEpoch || Serial != FastModeSceneSerial || Generation != FastModeCallbackGeneration || UninstallPrepared || UninstallCleanupBusy
+                  Return
+                EndIf
+                Slots = UpdatedSlots
+              EndIf
+            EndIf
+          EndIf
+          If Epoch != PSQSexSceneEpoch || Serial != FastModeSceneSerial || Generation != FastModeCallbackGeneration || UninstallPrepared || UninstallCleanupBusy
+            Return
+          EndIf
+          Self.CompactFishCandidates()
+        EndIf
       EndIf
-      j += 1
-    EndWhile
-    If Slots.Length > 1
-      Self.TriggerSex()
-    Else
-      Self.ResetSlots()
-      Self.DischargeFish()
     EndIf
+  EndWhile
+  If Epoch != PSQSexSceneEpoch || Serial != FastModeSceneSerial || Generation != FastModeCallbackGeneration || UninstallPrepared || UninstallCleanupBusy
+    Return
+  EndIf
+  If !Cancelled && Slots.Length > 1
+    Self.TriggerSex()
   Else
+    Self.ResetSlots()
     Self.DischargeFish()
   EndIf
 EndFunction
@@ -2020,9 +2105,22 @@ Function ChangeAccursedBodyPaint(Actor Accursed)
 EndFunction
 
 Function ReloadSuccubusCharm()
-  Float ReloadTimer = GameDaysPassed.GetValue() - LastReloadTime
-  Int AddAmmo = Math.Floor(ReloadTimer * SuccubusRank.GetValue())
-  LastReloadTime = GameDaysPassed.GetValue() - ReloadTimer - (AddAmmo as Float / SuccubusRank.GetValue())
+  Float Now = GameDaysPassed.GetValue()
+  ; Older releases moved this clock backwards on every refill. Repair that
+  ; invalid baseline before a large elapsed value reaches Math.Floor's Int result.
+  If LastReloadTime < 0.0 || LastReloadTime > Now || LastReloadTime != LastReloadTime
+    LastReloadTime = Now
+  EndIf
+  If CharmSpellAmmo < 0
+    CharmSpellAmmo = 0
+  EndIf
+  Float Rank = SuccubusRank.GetValue()
+  If Rank <= 0.0
+    Return
+  EndIf
+  Float ReloadTimer = Now - LastReloadTime
+  Int AddAmmo = Math.Floor(ReloadTimer * Rank)
+  LastReloadTime = Now - ReloadTimer + (AddAmmo as Float / Rank)
   CharmSpellAmmo += AddAmmo
   If CharmSpellAmmo > SuccubusRank.GetValueInt()
     CharmSpellAmmo = SuccubusRank.GetValueInt()
@@ -3333,9 +3431,9 @@ EndFunction
 
 Function ProcessPPlusOrgasm(Actor Source, Int TID)
   Int Generation = FastModeCallbackGeneration
-  if Self.IsFastModeClosingScene(TID)
-    return
-  endif
+  If Self.IsFastModeClosingScene(TID)
+    Return
+  EndIf
   Int SceneEpoch = PSQSexSceneEpoch
   If PPlusThreadID == TID && PPlusSceneClosed
     Return
@@ -3366,18 +3464,29 @@ Function ProcessPPlusOrgasm(Actor Source, Int TID)
     Debug.Trace("[PSQ SLCompat] Skipped unavailable P+ settlement: tid=" + TID as String, 0)
     Return
   EndIf
+  If PPlusThreadID != TID || PPlusSceneActors.Length != actors.Length || PPlusSceneActors.find(Source, 0) < 0
+    Self.BeginPPlusScene(actors, TID, False)
+  EndIf
+  Int SceneSerial = FastModeSceneSerial
+  If !Self.IsPSQSceneStampCurrent(TID, SceneSerial, Generation, SceneEpoch) || PPlusSettlementBusy || Self.IsFastModeClosingScene(TID) || PPlusSceneClosed || UninstallPrepared || UninstallCleanupBusy
+    Return
+  EndIf
   PPlusSettlementBusy = True
   Self.SettlePPlusOrgasm(Source, TID, actors, Count, SceneTime, RealPenis, ContactMask, PlayerIsVictim, PlayerIsAggressor)
-  If SceneEpoch == PSQSexSceneEpoch
+  If Self.IsPSQSceneStampCurrent(TID, SceneSerial, Generation, SceneEpoch)
     PPlusSettlementBusy = False
   EndIf
 EndFunction
 
 Function SettlePPlusOrgasm(Actor Source, Int TID, Actor[] actors, Int Count, Float SceneTime, Bool RealPenis, Int ContactMask, Bool PlayerIsVictim, Bool PlayerIsAggressor)
-  if Self.IsFastModeClosingScene(TID)
-    return
-  endif
   Int SceneEpoch = PSQSexSceneEpoch
+  Int SceneGeneration = FastModeCallbackGeneration
+  If Source == None || Self.IsFastModeClosingScene(TID)
+    Return
+  EndIf
+  If PPlusThreadID == TID && PPlusSceneClosed
+    Return
+  EndIf
   If PlayerIsSuccubus.GetValueInt() != 1
     Return
   EndIf
@@ -3387,19 +3496,39 @@ Function SettlePPlusOrgasm(Actor Source, Int TID, Actor[] actors, Int Count, Flo
   If PPlusThreadID != TID || PPlusSceneActors.Length != actors.Length || PPlusSceneActors.find(Source, 0) < 0
     Self.BeginPPlusScene(actors, TID, False)
   EndIf
+  If SceneEpoch != PSQSexSceneEpoch || SceneGeneration != FastModeCallbackGeneration
+    Return
+  EndIf
+  Int SceneSerial = FastModeSceneSerial
+  If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+    Return
+  EndIf
   Int Slot = PPlusSceneActors.find(Source, 0)
-  If Count <= 0 || Count <= PPlusOrgasmCounts[Slot]
+  If Slot < 0 || Slot >= PPlusOrgasmCounts.Length || Slot >= PPlusDrainTimes.Length
+    Return
+  EndIf
+  Int PreviousCount = PPlusOrgasmCounts[Slot]
+  If Count <= 0 || Count <= PreviousCount
+    Return
+  EndIf
+  If PreviousCount < 0
+    Debug.Trace("[PSQ SLCompat] Invalid prior P+ orgasm count; skipping settlement", 1)
     Return
   EndIf
   Float SexTime = SceneTime - PPlusDrainTimes[Slot]
   If SexTime < 0.0
     SexTime = 0.0
   EndIf
-  PPlusOrgasmCounts[Slot] = Count
-  PPlusDrainTimes[Slot] = SceneTime
-  If Source == PlayerRef
-    If actors.Length == 1
-      Self.AddSuccubusFluid()
+  Bool FixedTimeMode = FastMode
+  Int Remaining = 1
+  If FixedTimeMode
+    Remaining = Count - PreviousCount
+    SexTime = FastModeTime
+  EndIf
+  If Source == PlayerRef && actors.Length != 1
+    If Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+      PPlusOrgasmCounts[Slot] = Count
+      PPlusDrainTimes[Slot] = SceneTime
     EndIf
     Return
   EndIf
@@ -3409,43 +3538,97 @@ Function SettlePPlusOrgasm(Actor Source, Int TID, Actor[] actors, Int Count, Flo
   Bool CanExtract = RealPenis && ContactMask != 0
   Bool CanImpregnant = False
   Bool CanInflate = EnableCumInflation && (Vaginal || Anal && CumInflationAnal || Oral && CumInflationOral)
-  If FastMode
-    SexTime = FastModeTime
-  EndIf
-  Float DrainValue = SexTime * DrainValueMultipliers * SuccubusRank.GetValue()
-  If UseArousalAtDrain
-    Float ArousedRank = storageutil.GetIntValue(PlayerRef as Form, "PSQ_ArousalAtBeginning", 0) as Float
-    If ArousedRank < 50.0
-      ArousedRank = 50.0
-    EndIf
-    DrainValue *= ArousedRank / 50.0
-  EndIf
-  If PlayerIsAggressor
-    DrainValue *= 2.0
-  EndIf
-  CumInflationValue = 0.0
-  storageutil.SetFloatValue(PlayerRef as Form, "PSQ_IncreaseEXP", 0.0)
-  If Self.IsNotUndead(Source)
-    If SceneEpoch != PSQSexSceneEpoch
+  Int ClaimedCount = PreviousCount
+  Int BatchTicks = 0
+  While Remaining > 0
+    If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
       Return
     EndIf
-    If Self.EnsureDeferredDrain(Source, TID)
-      Self.SuccubusDrain(Source, DrainValue, PlayerIsVictim, PlayerIsAggressor, CanExtract, CanImpregnant, Oral, CanInflate, RealPenis, RealPenis)
+    If PPlusOrgasmCounts[Slot] != ClaimedCount
+      Return
     EndIf
-  EndIf
-  If Self.IsFamiliar(Source)
-    Self.ChargeFamiliar(Source)
-  EndIf
-  If EnableCaptive
-    Self.Captive(Source, DrainValue)
-  EndIf
-  If CanInflate && CumInflationValue > 0.0
-    CumInflationSpell.Cast(PlayerRef as ObjectReference, None)
-  EndIf
-  Self.Satiety(0.0)
-  Self.SatietyNotification(0.0, False)
-  Self.SuccubusLevelUp(storageutil.GetFloatValue(PlayerRef as Form, "PSQ_IncreaseEXP", 0.0))
-  Debug.Trace((((("[PSQ SLCompat] P+ orgasm: tid=" + TID as String) + "; actor=" + Source as String) + "; count=" + Count as String) + "; routes=" + ContactMask as String) + "; seconds=" + SexTime as String, 0)
+    If FixedTimeMode
+      ClaimedCount += 1
+    Else
+      ClaimedCount = Count
+    EndIf
+    PPlusOrgasmCounts[Slot] = ClaimedCount
+    PPlusDrainTimes[Slot] = SceneTime
+    If Source == PlayerRef
+      Self.AddSuccubusFluid()
+    Else
+      Float DrainValue = SexTime * DrainValueMultipliers * SuccubusRank.GetValue()
+      If UseArousalAtDrain
+        Float ArousedRank = storageutil.GetIntValue(PlayerRef as Form, "PSQ_ArousalAtBeginning", 0) as Float
+        If ArousedRank < 50.0
+          ArousedRank = 50.0
+        EndIf
+        DrainValue *= ArousedRank / 50.0
+      EndIf
+      If PlayerIsAggressor
+        DrainValue *= 2.0
+      EndIf
+      If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      CumInflationValue = 0.0
+      storageutil.SetFloatValue(PlayerRef as Form, "PSQ_IncreaseEXP", 0.0)
+      Bool Eligible = Self.IsNotUndead(Source)
+      If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      If Eligible && Self.EnsureDeferredDrain(Source, TID)
+        If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+          Return
+        EndIf
+        Self.SuccubusDrain(Source, DrainValue, PlayerIsVictim, PlayerIsAggressor, CanExtract, CanImpregnant, Oral, CanInflate, RealPenis, RealPenis)
+      EndIf
+      If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      Bool Familiar = Self.IsFamiliar(Source)
+      If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      If Familiar
+        Self.ChargeFamiliar(Source)
+      EndIf
+      If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      If EnableCaptive
+        Self.Captive(Source, DrainValue)
+      EndIf
+      If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      If CanInflate && CumInflationValue > 0.0
+        CumInflationSpell.Cast(PlayerRef as ObjectReference, None)
+      EndIf
+      If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      Self.Satiety(0.0)
+      If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      Self.SatietyNotification(0.0, False)
+      If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+        Return
+      EndIf
+      Self.SuccubusLevelUp(storageutil.GetFloatValue(PlayerRef as Form, "PSQ_IncreaseEXP", 0.0))
+    EndIf
+    If !Self.IsPPlusCatchupCurrent(TID, SceneSerial, SceneGeneration, SceneEpoch)
+      Return
+    EndIf
+    Remaining -= 1
+    BatchTicks += 1
+    If Remaining > 0 && BatchTicks >= 8
+      BatchTicks = 0
+      Utility.Wait(0.0)
+    EndIf
+  EndWhile
+  Debug.Trace(((((("[PSQ SLCompat] P+ orgasm: tid=" + TID as String) + "; actor=" + Source as String) + "; count=" + Count as String) + "; routes=" + ContactMask as String) + "; seconds=" + SexTime as String) + "; catchup=" + (Count - PreviousCount) as String, 0)
 EndFunction
 
 Function QuitSuccubus()
@@ -5520,11 +5703,13 @@ Bool Function ApplySuccubusOutfitSelectionCore(Int Selection, Int Owner, Bool Re
     Return False
   EndIf
   Armor Next5 = Self.GetCachedOutfitPart(Selection, 5, Owner, RequireBusy)
-  If Next0 == None || Next1 == None || Next2 == None || Next3 == None || Next4 == None || Next5 == None
-    Return False
-  EndIf
   If PSQSuccubusWings != None
     Next5 = PSQSuccubusWings
+  EndIf
+  ; Only enabled body clothing needs a compatible record. Optional accessories
+  ; may be absent, including when UBE is used without an outfit conversion.
+  If (HenshinCuirass && Next0 == None) || (HenshinBoots && Next1 == None) || (HenshinGloves && Next2 == None)
+    Return False
   EndIf
   If Selection == SuccubusOutfitSelection && PSQSuccubusCuirass == Next0 && PSQSuccubusBoots == Next1 && PSQSuccubusGauntlets == Next2 && PSQSuccubusHorns == Next3 && PSQSuccubusTail == Next4 && PSQSuccubusWings == Next5
     If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
@@ -17574,4 +17759,48 @@ Bool Function ClearRestoredEquipmentFields(Int Owner, Bool RequireBusy, Int Entr
   EndIf
   OrgEyes = None
   Return EntryLoad == PSQLoadEpoch && Owner == AppearanceOperationId && (!RequireBusy || AppearanceEditBusy)
+EndFunction
+
+Function CompactFishCandidates()
+  If !Fish
+    Fish = new Actor[100]
+    FishCount = 0
+    Return
+  EndIf
+  Int Limit = FishCount
+  If Limit < 0
+    Limit = 0
+  ElseIf Limit > Fish.Length
+    Limit = Fish.Length
+  EndIf
+  Actor[] Seen = new Actor[128]
+  Int ReadIndex = 0
+  Int WriteIndex = 0
+  While ReadIndex < Limit
+    Actor Candidate = Fish[ReadIndex]
+    Bool AlreadyChosen = False
+    If Slots
+      AlreadyChosen = Slots.find(Candidate, 0) >= 0
+    EndIf
+    If Candidate != None && Candidate != PlayerRef && !AlreadyChosen && Seen.find(Candidate, 0) < 0
+      Seen[WriteIndex] = Candidate
+      Fish[WriteIndex] = Candidate
+      WriteIndex += 1
+    EndIf
+    ReadIndex += 1
+  EndWhile
+  ReadIndex = WriteIndex
+  While ReadIndex < Fish.Length
+    Fish[ReadIndex] = None
+    ReadIndex += 1
+  EndWhile
+  FishCount = WriteIndex
+EndFunction
+
+Bool Function IsPPlusCatchupCurrent(Int TID, Int Serial, Int Generation, Int Epoch)
+  Return Self.IsPSQSceneStampCurrent(TID, Serial, Generation, Epoch) && !PPlusSceneClosed && !UninstallPrepared && !UninstallCleanupBusy && PlayerIsSuccubus.GetValueInt() == 1 && !Self.IsFastModeClosingScene(TID)
+EndFunction
+
+Bool Function IsPSQSceneStampCurrent(Int TID, Int Serial, Int Generation, Int Epoch)
+  Return TID >= 0 && Epoch == PSQSexSceneEpoch && Serial == FastModeSceneSerial && Generation == FastModeCallbackGeneration && PPlusThreadID == TID
 EndFunction

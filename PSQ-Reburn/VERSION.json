@@ -133,7 +133,7 @@
     "source_tests": 262,
     "game_runtime_tested": false
   },
-  "package_revision": 61,
+  "package_revision": 62,
   "display_version": "v0.26",
   "version_relabel": {
     "date": "2026-10-26",
@@ -1044,5 +1044,25 @@
     "dual_framework_offline_verified": true,
     "runtime_tested": false,
     "controlled_speedup_measured": false
+  },
+  "code_review_fixes_20261107": {
+    "review_base": "cc286d489fd805be72d28a143104d9ca5d24e566",
+    "fixed": [
+      "S1",
+      "S2",
+      "F1",
+      "F3",
+      "F4",
+      "F5",
+      "F6"
+    ],
+    "auxiliary_runner_repaired": "S3",
+    "papyrus_source_entry_points_synchronized": true,
+    "papyrus_persistent_fields_unchanged": true,
+    "native_API": 4,
+    "native_file_version": "1.3.8.1",
+    "native_dll_sha256": "85d1c8c66fda45d21a78bb9d12650e581dcd93209642e7791226c5ebc2795a17",
+    "native_source_archive_sha256": "a6fa8bdb2ed1cb9b4648fff3297af3da0708f09a06cb03938519fc4319f59d13",
+    "game_runtime_tested": false
   }
 }

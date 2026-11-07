@@ -69,7 +69,6 @@ Function OnConfigOpen()
 EndFunction
 
 Function OnPageReset(String Page)
-  ; An old save can still request the removed page once while MCM rebuilds.
   If Page == "$PSQ_Page7"
     Page = "$PSQ_Page1"
   EndIf
@@ -82,18 +81,18 @@ Function OnPageReset(String Page)
     Else
       Self.AddTextOption("$PSQ_UninstallStatus", "$PSQ_UninstallBusy", 1)
     EndIf
-    Return 
+    Return
   EndIf
   If Page != "$PSQ_Page10"
     TestToolsOpen = False
   ElseIf TestToolsOpen
     Self.DrawTestTools()
-    Return 
+    Return
   EndIf
   If Page == "$PSQ_ThrallPage"
     GrowthRacialListOpen = False
     Self.DrawSuccubusThrallPage()
-    Return 
+    Return
   EndIf
   TransformBuffModeOption = -1
   If Page != "$PSQ_GrowthPage"
@@ -105,11 +104,11 @@ Function OnPageReset(String Page)
     Else
       Self.DrawGrowthOverview()
     EndIf
-    Return 
+    Return
   EndIf
   If Page == "$PSQ_CompatibilityPage"
     Self.DrawCompatibilityPage()
-    Return 
+    Return
   EndIf
   If PSQ.SexLab.Config.TargetRef != None
     SuccubusNPC = PSQ.SexLab.Config.TargetRef
@@ -200,12 +199,13 @@ Function OnPageReset(String Page)
     Self.AddColorOptionST("CustomTattooGlowColor", "$PSQ_CustomTattooGlowColor", PSQ.CustomTattooGlowColor, (PSQ.GetTattooGlowMode() != 2) as Int)
     Self.AddMenuOptionST("TattooGlowMode", "$PSQ_TattooGlowMode", Self.GetTattooGlowModeName(PSQ.GetTattooGlowMode()), 0)
     Self.AddEmptyOption()
-    Self.AddHeaderOption("$PSQ_SchlongSettings", 0)
-    Self.AddMenuOptionST("PlayerHumanSchlong", "$PSQ_PlayerHumanSchlong", PSQ.GetTRXFutaLabel(False), 0)
-    Self.AddMenuOptionST("PlayerSuccubusSchlong", "$PSQ_PlayerSuccubusSchlong", PSQ.GetTRXFutaLabel(True), 0)
-    Self.AddToggleOptionST("AutoGenderSwitch", "$PSQ_AutoGenderSwitch", PSQ.AutoGenderSwitch, 0)
-    Self.AddToggleOptionST("EnableFutanariPower", "$PSQ_EnableFutanariPower", PSQ.EnableFutanariPower, 0)
-    Self.AddKeyMapOptionST("HotkeyCreatePenisSelf", "$PSQ_HotkeyCreatePenisSelf", PSQ.HotkeyCreatePenisSelf, 0)
+    PSQ.PlayerHumanSchlong
+    PSQ.GetTRXFutaLabel(False)
+    PSQ.PlayerSuccubusSchlong
+    PSQ.GetTRXFutaLabel(True)
+    PSQ.AutoGenderSwitch
+    PSQ.EnableFutanariPower
+    PSQ.HotkeyCreatePenisSelf
     Self.AddEmptyOption()
     Self.AddHeaderOption("$PSQ_PSQSuccubusEye", 0)
     Self.AddSliderOptionST("SuccubusNightEyeStrength", "$PSQ_SuccubusNightEyeStrength", PSQ.SuccubusNightEyeStrength, "{2}", 0)
@@ -223,10 +223,10 @@ Function OnPageReset(String Page)
     Self.AddSliderOptionST("CanFlyingLevel", "$PSQ_CanFlyingLevel", PSQ.CanFlyingLevel as Float, "{0}", (!PSQ.CanControlWingflightPolicy()) as Int)
     Self.AddEmptyOption()
     Self.AddHeaderOption("$PSQ_Lure", 0)
-    Self.AddToggleOptionST("PSQ_LureEffectOnFemale", "$PSQ_LureEffectOnFemale", storageutil.GetIntValue(PSQ.PlayerRef as Form, "PSQ_LureEffectOnFemale", 0) == 0, 0)
-    Self.AddToggleOptionST("PSQ_LureEffectOnMale", "$PSQ_LureEffectOnMale", storageutil.GetIntValue(PSQ.PlayerRef as Form, "PSQ_LureEffectOnMale", 0) == 0, 0)
-    Self.AddToggleOptionST("PSQ_LureEffectOnBeast", "$PSQ_LureEffectOnBeast", storageutil.GetIntValue(PSQ.PlayerRef as Form, "PSQ_LureEffectOnBeast", 0) == 0, 0)
-    Self.AddToggleOptionST("PSQ_LureEffectOnUndead", "$PSQ_LureEffectOnUndead", storageutil.GetIntValue(PSQ.PlayerRef as Form, "PSQ_LureEffectOnUndead", 0) == 1, 0)
+    Self.AddToggleOptionST("PSQ_LureEffectOnFemale", "$PSQ_LureEffectOnFemale", storageUtil.GetIntValue(PSQ.PlayerRef as Form, "PSQ_LureEffectOnFemale", 0) == 0, 0)
+    Self.AddToggleOptionST("PSQ_LureEffectOnMale", "$PSQ_LureEffectOnMale", storageUtil.GetIntValue(PSQ.PlayerRef as Form, "PSQ_LureEffectOnMale", 0) == 0, 0)
+    Self.AddToggleOptionST("PSQ_LureEffectOnBeast", "$PSQ_LureEffectOnBeast", storageUtil.GetIntValue(PSQ.PlayerRef as Form, "PSQ_LureEffectOnBeast", 0) == 0, 0)
+    Self.AddToggleOptionST("PSQ_LureEffectOnUndead", "$PSQ_LureEffectOnUndead", storageUtil.GetIntValue(PSQ.PlayerRef as Form, "PSQ_LureEffectOnUndead", 0) == 1, 0)
     Self.AddEmptyOption()
     Self.AddHeaderOption("$PSQ_OtherSettings", 0)
     Self.AddToggleOptionST("FluidNeedArousal", "$PSQ_FluidNeedArousal", PSQ.FluidNeedArousal, 0)
@@ -275,7 +275,7 @@ Function OnPageReset(String Page)
     Self.AddKeyMapOptionST("HotkeyHenshin", "$PSQ_HotkeyHenshin", PSQ.HotkeyHenshin, 0)
     Self.AddKeyMapOptionST("HotkeySuccubusCharmSpell", "$PSQ_HotkeySuccubusCharmSpell", PSQ.HotkeySuccubusCharmSpell, 0)
     Self.AddKeyMapOptionST("HotkeyMasturbation", "$PSQ_HotkeyMasturbation", PSQ.HotkeyMasturbation, 0)
-    Self.AddKeyMapOptionST("HotkeyCreatePenisSelf", "$PSQ_HotkeyCreatePenisSelf", PSQ.HotkeyCreatePenisSelf, 0)
+    PSQ.HotkeyCreatePenisSelf
     Self.AddKeyMapOptionST("HotkeyRestoreMagicka", "$PSQ_HotkeyRestoreMagicka", PSQ.HotkeyRestoreMagicka, 0)
     Self.AddKeyMapOptionST("HotkeyDigestion", "$PSQ_HotkeyDigestion", PSQ.HotkeyDigestion, 0)
     Self.SetCursorPosition(1)
@@ -287,14 +287,15 @@ Function OnPageReset(String Page)
     Self.AddKeyMapOptionST("HotkeyDecreaseNode", "$PSQ_HotkeyDecreaseNode", PSQ.HotkeyDecreaseNode, 0)
     Self.AddKeyMapOptionST("HotkeyHeight", "$PSQ_HotkeyHeight", PSQ.HotkeyHeight, 0)
     Self.AddKeyMapOptionST("HotkeyButtNode", "$PSQ_HotkeyButtNode", PSQ.HotkeyButtNode, 0)
-    Self.AddKeyMapOptionST("HotkeyGenitalsNode", "$PSQ_HotkeyGenitalsNode", PSQ.HotkeyGenitalsNode, 0)
-    Self.AddKeyMapOptionST("HotkeyScrotumNode", "$PSQ_HotkeyScrotumNode", PSQ.HotkeyScrotumNode, 0)
+    PSQ.HotkeyGenitalsNode
+    PSQ.HotkeyScrotumNode
   EndIf
   If Page == "$PSQ_Page5"
     Self.SetCursorFillMode(Self.TOP_TO_BOTTOM)
     Self.AddTextOptionST("HenshinCaution", "$PSQ_HenshinCaution", "", 0)
     BodySelectionOption = Self.AddMenuOption("$PSQ_TransformBodySelection", Self.GetTransformBodySelectionName(), 0)
-    Self.AddToggleOptionST("HenshinSkin", "$PSQ_EnableHenshinSkin", PSQ.HenshinSkin, 0)
+    PSQ.HenshinSkin
+    Self.AddTransformSkinControls()
     Self.AddColorOptionST("PSQSkinColor", "$PSQ_HenshinSkinColor", PSQ.PSQSkinColor, 0)
     Self.AddSliderOptionST("HenshinSkinColorfulness", "$PSQ_HenshinSkinAlpha", PSQ.PSQSkinColorAlpha as Float, "{0}", 0)
     Self.AddTextOptionST("SetSkinColor", "", "$PSQ_SetSkinColor", 0)
@@ -305,7 +306,7 @@ Function OnPageReset(String Page)
     Self.AddMenuOptionST("TransformPart0", "$PSQ_TransformPart0", Self.GetIndependentPartLabel(0), 0)
     Self.AddMenuOptionST("TransformPart1", "$PSQ_TransformPart1", Self.GetIndependentPartLabel(1), 0)
     Self.AddMenuOptionST("TransformPart2", "$PSQ_TransformPart2", Self.GetIndependentPartLabel(2), 0)
-    Self.AddToggleOptionST("HenshinPenis", "$PSQ_EnableHenshinPenis", PSQ.HenshinPenis, 0)
+    PSQ.HenshinPenis
     Self.AddMenuOptionST("TransformHairMenu", "$PSQ_TransformHairSelect", Self.GetTransformHairLabel(PSQ.SuccubusHairSelection), 0)
     Self.AddToggleOptionST("HenshinHairColor", "$PSQ_EnableHenshinHairColor", PSQ.HenshinHairColor, 0)
     Self.AddColorOptionST("PSQSuccubusHairColorInt", "$PSQ_HairColor", PSQ.PSQSuccubusHairColorInt, 0)
@@ -336,17 +337,7 @@ Function OnPageReset(String Page)
     Self.AddSliderOptionST("HenshinConsumeEnergy", "$HenshinConsumeEnergy", PSQ.HenshinConsumeEnergy, "{1}", 0)
   EndIf
   If Page == "$PSQ_Page6"
-    Self.SetCursorFillMode(Self.TOP_TO_BOTTOM)
-    Self.AddHeaderOption("$PSQ_BodyShapeChange", 0)
-    Self.AddToggleOptionST("EnableHeightChangeSuccubus", "$PSQ_EnableHeightChangeSuccubus", PSQ.EnableHeightChangeSuccubus, 0)
-    Self.AddSliderOptionST("SuccubusHeight", "$PSQ_SuccubusHeight", PSQ.SuccubusHeight, "{2}", 0)
-    Self.AddToggleOptionST("EnableButtChangeSuccubus", "$PSQ_EnableButtChangeSuccubus", PSQ.EnableButtChangeSuccubus, 0)
-    Self.AddSliderOptionST("SuccubusButt", "$PSQ_SuccubusButt", PSQ.SuccubusButt, "{2}", 0)
-    Self.SetCursorPosition(3)
-    Self.AddToggleOptionST("EnableGenitalsChangeSuccubus", "$EnableGenitalsChangeSuccubus", PSQ.EnableGenitalsChangeSuccubus, 0)
-    Self.AddSliderOptionST("SuccubusGenitals", "$PSQ_SuccubusGenitals", PSQ.SuccubusGenitals, "{2}", 0)
-    Self.AddToggleOptionST("EnableScrotumChangeSuccubus", "$PSQ_EnableScrotumChangeSuccubus", PSQ.EnableScrotumChangeSuccubus, 0)
-    Self.AddSliderOptionST("SuccubusScrotum", "$PSQ_SuccubusScrotum", PSQ.SuccubusScrotum, "{2}", 0)
+    Self.DrawBodyFutaPage()
   EndIf
   If Page == "$PSQ_Page8"
     PSQ.SyncManagedAbilities()
@@ -370,8 +361,10 @@ Function OnPageReset(String Page)
     Self.AddToggleOptionST("EnableSuccubusDrainHealthSpell", "$PSQ_EnableSuccubusDrainHealthSpell", PSQ.EnableSuccubusDrainHealthSpell, AbilityFlags)
     Self.AddToggleOptionST("EnableSuccubusDrainStaminaSpell", "$PSQ_EnableSuccubusDrainStaminaSpell", PSQ.EnableSuccubusDrainStaminaSpell, AbilityFlags)
     Self.AddToggleOptionST("EnableSuccubusDrainFF", "$PSQ_EnableSuccubusDrainFF", PSQ.EnableSuccubusDrainFF, AbilityFlags)
-    Self.AddToggleOptionST("CreatePenisSpellSelf", PSQ.CreatePenisSpellSelf.GetName(), PSQ.PlayerRef.HasSpell(PSQ.CreatePenisSpellSelf as Form), AbilityFlags)
-    Self.AddToggleOptionST("CreatePenisSpellOther", PSQ.CreatePenisSpellOther.GetName(), PSQ.PlayerRef.HasSpell(PSQ.CreatePenisSpellOther as Form), AbilityFlags)
+    PSQ.CreatePenisSpellSelf.GetName()
+    PSQ.PlayerRef.HasSpell(PSQ.CreatePenisSpellSelf as Form)
+    PSQ.CreatePenisSpellOther.GetName()
+    PSQ.PlayerRef.HasSpell(PSQ.CreatePenisSpellOther as Form)
     Self.AddToggleOptionST("StarkRealitySpell", PSQ.StarkRealitySpell.GetName(), PSQ.PlayerRef.HasSpell(PSQ.StarkRealitySpell as Form), AbilityFlags)
     Self.AddToggleOptionST("SuccuKanashibari", PSQ.SuccuKanashibari.GetName(), PSQ.PlayerRef.HasSpell(PSQ.SuccuKanashibari as Form), AbilityFlags)
     Self.SetCursorPosition(5)
@@ -417,6 +410,8 @@ Function OnPageReset(String Page)
     Self.AddHeaderOption("$PSQ_OtherAbilitySettings", 0)
     Self.AddSliderOptionST("WingMaxJumpHeight", "Wingflight 翼装跳跃高度", PSQ.WingMaxJumpHeight, "{0}", (!PSQ.CanControlWingflightPolicy()) as Int)
     Self.AddSliderOptionST("DefaultJumpHeight", "$PSQ_DefaultJumpHeight", PSQ.DefaultJumpHeight, "{0}", 0)
+    PSQ.PhysicalWeakness
+    Self.AddEmptyOption()
     Self.AddHeaderOption("$PSQ_EnergyConversionMAX", 0)
     Self.AddSliderOptionST("RestoreMagickaMAX", "$PSQ_EnergyConversionMagicka", PSQ.RestoreMagickaMAX, "{0}", 0)
     Self.AddEmptyOption()
@@ -453,26 +448,26 @@ Function OnPageReset(String Page)
     Self.SetCursorFillMode(Self.TOP_TO_BOTTOM)
     Self.AddTextOptionST("NPCTransform", "NPC 变身", "", 0)
     Self.AddTextOptionST("NPCName", SuccubusNPC.GetLeveledActorBase().GetName(), "", 0)
-    Self.AddToggleOptionST("NPCBecomeSuccubus", "注册为魅魔", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformRegistered", 0) as Bool, 0)
-    Self.AddToggleOptionST("NPCHenshinBody", "$PSQ_EnableHenshinBody", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformBody", 0) as Bool, 0)
-    Self.AddToggleOptionST("NPCHenshinSkin", "$PSQ_EnableHenshinSkin", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformSkin", 0) as Bool, 0)
-    Self.AddColorOptionST("NPCPSQSkinColor", "$PSQ_HenshinSkinColor", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformSkinColor", 0), 0)
+    Self.AddToggleOptionST("NPCBecomeSuccubus", "注册为魅魔", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformRegistered", 0) as Bool, 0)
+    Self.AddToggleOptionST("NPCHenshinBody", "$PSQ_EnableHenshinBody", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformBody", 0) as Bool, 0)
+    Self.AddToggleOptionST("NPCHenshinSkin", "$PSQ_EnableHenshinSkin", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformSkin", 0) as Bool, 0)
+    Self.AddColorOptionST("NPCPSQSkinColor", "$PSQ_HenshinSkinColor", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformSkinColor", 0), 0)
     Self.AddTextOptionST("NPCSetSkinColor", "", "$PSQ_SetSkinColor", 0)
-    Self.AddToggleOptionST("NPCHenshinEyes", "$PSQ_EnableHenshinEyes", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformEye", 0) as Bool, 0)
-    Self.AddToggleOptionST("NPCHenshinWings", "$PSQ_EnableHenshinWings", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformWings", 0) as Bool, 0)
-    Self.AddMenuOptionST("NPCSwitchWings", "$PSQ_SwitchWings", storageutil.GetFormValue(SuccubusNPC as Form, "PSQ_NPCWings", None) as String, 0)
-    Self.AddToggleOptionST("NPCHenshinHorn", "$PSQ_EnableHenshinHorn", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformHorns", 0) as Bool, 0)
-    Self.AddToggleOptionST("NPCHenshinTail", "$PSQ_EnableHenshinTail", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformTail", 0) as Bool, 0)
-    Self.AddToggleOptionST("NPCHenshinCuirass", "$PSQ_EnableHenshinCuirass", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformCuirass", 0) as Bool, 0)
-    Self.AddToggleOptionST("NPCHenshinBoots", "$PSQ_EnableHenshinBoots", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformBoots", 0) as Bool, 0)
-    Self.AddToggleOptionST("NPCHenshinGloves", "$PSQ_EnableHenshinGloves", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformGauntlets", 0) as Bool, 0)
-    Self.AddToggleOptionST("NPCHenshinPenis", "$PSQ_EnableHenshinPenis", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformPenis", 0) as Bool, 0)
+    Self.AddToggleOptionST("NPCHenshinEyes", "$PSQ_EnableHenshinEyes", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformEye", 0) as Bool, 0)
+    Self.AddToggleOptionST("NPCHenshinWings", "$PSQ_EnableHenshinWings", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformWings", 0) as Bool, 0)
+    Self.AddMenuOptionST("NPCSwitchWings", "$PSQ_SwitchWings", storageUtil.GetFormValue(SuccubusNPC as Form, "PSQ_NPCWings", None) as String, 0)
+    Self.AddToggleOptionST("NPCHenshinHorn", "$PSQ_EnableHenshinHorn", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformHorns", 0) as Bool, 0)
+    Self.AddToggleOptionST("NPCHenshinTail", "$PSQ_EnableHenshinTail", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformTail", 0) as Bool, 0)
+    Self.AddToggleOptionST("NPCHenshinCuirass", "$PSQ_EnableHenshinCuirass", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformCuirass", 0) as Bool, 0)
+    Self.AddToggleOptionST("NPCHenshinBoots", "$PSQ_EnableHenshinBoots", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformBoots", 0) as Bool, 0)
+    Self.AddToggleOptionST("NPCHenshinGloves", "$PSQ_EnableHenshinGloves", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformGauntlets", 0) as Bool, 0)
+    storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformPenis", 0) as Bool
     Self.SetCursorPosition(1)
-    Self.AddToggleOptionST("NPCHenshinScale", "变身时调整体型", storageutil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformScale", 0) as Bool, 0)
-    Self.AddSliderOptionST("NPCSuccubusHeight", "$PSQ_SuccubusHeight", storageutil.GetFloatValue(SuccubusNPC as Form, "PSQ_NPCTransformHeight", 0.0), "{2}", 0)
-    Self.AddSliderOptionST("NPCSuccubusButt", "$PSQ_SuccubusButt", storageutil.GetFloatValue(SuccubusNPC as Form, "PSQ_NPCTransformButt", 0.0), "{2}", 0)
-    Self.AddSliderOptionST("NPCSuccubusGenitals", "$PSQ_SuccubusGenitals", storageutil.GetFloatValue(SuccubusNPC as Form, "PSQ_NPCTransformGenitals", 0.0), "{2}", 0)
-    Self.AddSliderOptionST("NPCSuccubusScrotum", "$PSQ_SuccubusScrotum", storageutil.GetFloatValue(SuccubusNPC as Form, "PSQ_NPCTransformScrotum", 0.0), "{2}", 0)
+    Self.AddToggleOptionST("NPCHenshinScale", "变身时调整体型", storageUtil.GetIntValue(SuccubusNPC as Form, "PSQ_NPCTransformScale", 0) as Bool, 0)
+    Self.AddSliderOptionST("NPCSuccubusHeight", "$PSQ_SuccubusHeight", storageUtil.GetFloatValue(SuccubusNPC as Form, "PSQ_NPCTransformHeight", 0.0), "{2}", 0)
+    Self.AddSliderOptionST("NPCSuccubusButt", "$PSQ_SuccubusButt", storageUtil.GetFloatValue(SuccubusNPC as Form, "PSQ_NPCTransformButt", 0.0), "{2}", 0)
+    storageUtil.GetFloatValue(SuccubusNPC as Form, "PSQ_NPCTransformGenitals", 0.0)
+    storageUtil.GetFloatValue(SuccubusNPC as Form, "PSQ_NPCTransformScrotum", 0.0)
   EndIf
 EndFunction
 
@@ -1108,7 +1103,7 @@ Function HandleAppearanceOnSelectST(Int Owner, Bool RequireBusy)
       Return 
     EndIf
     PSQ.ArousedForceTransform = !PSQ.ArousedForceTransform
-    If PSQ.ArousedForceTransform
+    If PSQ.ArousedForceTransform || PSQ.ArousedForceDeTransform
       If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
         Return 
       EndIf
@@ -1128,7 +1123,7 @@ Function HandleAppearanceOnSelectST(Int Owner, Bool RequireBusy)
       Return 
     EndIf
     PSQ.ArousedForceDeTransform = !PSQ.ArousedForceDeTransform
-    If PSQ.ArousedForceDeTransform
+    If PSQ.ArousedForceTransform || PSQ.ArousedForceDeTransform
       If !PSQ.IsAppearanceOperationCurrent(Owner, RequireBusy)
         Return 
       EndIf

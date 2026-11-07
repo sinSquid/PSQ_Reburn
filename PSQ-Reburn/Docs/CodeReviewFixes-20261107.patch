@@ -1,0 +1,783 @@
+--- a/BodyChangeNG-PSQ/xmake.lua
++++ b/BodyChangeNG-PSQ/xmake.lua
+@@ -98,6 +98,41 @@
+         extract("src/BodyChangeNG/FaceSkinOverrides.cpp", "        bool Current()", "        RE::NiPointer<RE::Actor> Actor()", "transformation_face_current.inc")
+     end)
+ 
++target("BodyChangeNGHotkeyCaptureTests")
++    set_default(false)
++    set_kind("binary")
++    set_targetdir("build/v" .. psqBridgeVersion .. "/tests")
++    set_encodings("utf-8")
++    add_includedirs("src")
++    add_files("tests/HotkeyCaptureTests.cpp", "src/BodyChangeNG/Hotkey.cpp")
++    on_load(function (target)
++        local generated = path.join(target:autogendir(), "hotkey-capture")
++        os.mkdir(generated)
++        target:add("includedirs", generated)
++        local source = io.readfile("src/BodyChangeNG/InputSink.cpp")
++        local methods = {}
++        for _, signature in ipairs({
++            "    void InputSink::BeginHotkeyCapture()", "    void InputSink::CancelHotkeyCapture()",
++            "    void InputSink::ResetTransientState()", "    bool InputSink::IsCapturingHotkey()",
++            "    void InputSink::ProcessHotkeyCaptureButton(", "    RE::BSEventNotifyControl InputSink::ProcessEvent(",
++            "    void InputSink::QueueHotkeyCaptureRelease(", "    void InputSink::RetireHotkeyCaptureReleases(",
++            "    void InputSink::FinishHotkeyCaptureReleases()",
++            "    void InputSink::ObserveKeyboardButton(",
++            "    void InputSink::ProcessKeyboardButton(", "    bool InputSink::CtrlDown()",
++            "    bool InputSink::ShiftDown()", "    bool InputSink::AltDown()"}) do
++            local first = assert(source:find(signature, 1, true))
++            local last = assert(source:find("\n    }", first, true)) + #"\n    }" - 1
++            table.insert(methods, source:sub(first, last))
++        end
++        io.writefile(path.join(generated, "capture_input_production.inc"),
++            "namespace bcn {\n" .. table.concat(methods, "\n") .. "\n}\n")
++        source = io.readfile("src/BodyChangeNG/TextInputFilter.cpp")
++        local first = assert(source:find("    constexpr auto kRightMouseButton =", 1, true))
++        local last = assert(source:find("    void HookedPollInputDevices(", first, true))
++        last = assert(source:find("\n    }", last, true)) + #"\n    }" - 1
++        io.writefile(path.join(generated, "capture_filter_production.inc"), source:sub(first, last))
++    end)
++
+ target("BodyChangeNGBodyTextureRecoveryTests")
+     set_default(false)
+     set_kind("binary")
+--- a/BodyChangeNG-PSQ/scripts/Package-Release.ps1
++++ b/BodyChangeNG-PSQ/scripts/Package-Release.ps1
+@@ -11,14 +11,14 @@
+     throw 'Release output must be a child of the repository.'
+ }
+ $config = Get-Content -Raw -LiteralPath (Join-Path $repo 'xmake.lua')
+-if ($config -notmatch 'local version = "(\d+\.\d+\.\d+)"') { throw 'Missing release version.' }
++if ($config -notmatch 'local psqBridgeVersion = "(\d+\.\d+\.\d+\.\d+)"') { throw 'Missing PSQ bridge release version.' }
+ $version = $Matches[1]
+ $dirty = & git -c "safe.directory=$repo" -C $repo status --porcelain --untracked-files=normal
+ if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'Commit reviewed changes before packaging a source release.' }
+ $revision = (& git -c "safe.directory=$repo" -C $repo rev-parse HEAD).Trim()
+ if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve source revision.' }
+ $dll = Join-Path $repo "build\v$version\windows\x64\release\BodyChangeNG.dll"
+-if ((Get-Item -LiteralPath $dll).VersionInfo.FileVersion -ne "$version.0") {
++if ((Get-Item -LiteralPath $dll).VersionInfo.FileVersion -ne $version) {
+     throw 'DLL resource version does not match the source version.'
+ }
+ Add-Type -AssemblyName System.IO.Compression.FileSystem
+--- a/BodyChangeNG-PSQ/tests/PresetCatalogTests.cpp
++++ b/BodyChangeNG-PSQ/tests/PresetCatalogTests.cpp
+@@ -2,6 +2,7 @@
+ #include "BodyChangeNG/SliderName.h"
+ 
+ #include <cmath>
++#include <array>
+ #include <filesystem>
+ #include <fstream>
+ #include <iostream>
+@@ -57,6 +58,30 @@
+         return 0;
+     }
+     const auto root = std::filesystem::temp_directory_path() / "BodyChangeNGPresetCatalogTests";
++    const auto sexRoot = root / "sex-boundaries";
++    std::filesystem::create_directories(sexRoot);
++    for (const auto& [filename, male] : std::array{
++             std::pair{"sample.xml", false}, std::pair{"samples.xml", false},
++             std::pair{"sampler.xml", false}, std::pair{"talosian.xml", false},
++             std::pair{"sosial.xml", false}, std::pair{"savrenxyl.xml", false},
++             std::pair{"SAM.xml", true}, std::pair{"SOS.xml", true},
++             std::pair{"HIMBO.xml", true}, std::pair{"Talos.xml", true},
++             std::pair{"Savren.xml", true}, std::pair{"SavrenX.xml", true},
++             std::pair{"prefix-SAM-body.xml", true}}) {
++        {
++            std::ofstream xml(sexRoot / filename);
++            xml << R"(<SliderPresets><Preset name="Custom" set="Custom Shape"><SetSlider name="Waist" size="small" value="20"/></Preset></SliderPresets>)";
++        }
++        const auto actual = bcn::PresetCatalog::ScanDirectory(sexRoot);
++        const auto found = std::ranges::find_if(actual, [&](const auto& preset) {
++            return std::filesystem::path(preset.source).filename() == filename;
++        });
++        if (!Require(found != actual.end() && found->male == male,
++                "unclassified preset sex matched an embedded marker or lost a real male token")) {
++            std::cerr << "sex fixture: " << filename << "; expected male=" << male << '\n';
++            return 1;
++        }
++    }
+     std::filesystem::remove_all(root);
+     std::filesystem::create_directories(root / "Nested");
+     {
+--- a/BodyChangeNG-PSQ/tests/WheelFilterTests.cpp
++++ b/BodyChangeNG-PSQ/tests/WheelFilterTests.cpp
+@@ -53,6 +53,9 @@
+     static inline bool capturing{};
+     static InputSink& Get() { static InputSink sink; return sink; }
+     bool IsCapturingHotkey() const { return capturing; }
++    void ProcessHotkeyCaptureButton(const RE::ButtonEvent&) {}
++    void QueueHotkeyCaptureRelease(std::uint32_t, std::size_t) {}
++    void ObserveKeyboardButton(const RE::ButtonEvent&) {}
+ };
+ namespace native_ui {
+ bool open{}, typing{};
+--- a/BodyChangeNG-PSQ/src/BodyChangeNG/InputSink.cpp
++++ b/BodyChangeNG-PSQ/src/BodyChangeNG/InputSink.cpp
+@@ -6,6 +6,7 @@
+ #include "BodyChangeNG/UI.h"
+ 
+ #include <SKSE/Logger.h>
++#include <limits>
+ 
+ namespace
+ {
+@@ -100,28 +101,69 @@
+         capture_ = false;
+         std::scoped_lock lock(lock_);
+         heldKeys_.clear();
++        captureReleases_.clear();
+     }
+ 
+     bool InputSink::IsCapturingHotkey() const noexcept
+     {
+         return capture_.load();
++    }
++
++    void InputSink::ProcessHotkeyCaptureButton(const RE::ButtonEvent& event)
++    {
++        if (event.IsUp() || (capture_.load() && event.IsDown())) {
++            ProcessKeyboardButton(event);
++        }
++    }
++
++    void InputSink::QueueHotkeyCaptureRelease(std::uint32_t scanCode, std::size_t precedingButtons)
++    {
++        std::scoped_lock lock(lock_);
++        captureReleases_.emplace_back(precedingButtons, scanCode);
++    }
++
++    void InputSink::ObserveKeyboardButton(const RE::ButtonEvent& event)
++    {
++        std::scoped_lock lock(lock_);
++        if (event.IsUp()) heldKeys_.erase(event.GetIDCode());
++        else if (event.IsPressed()) heldKeys_.insert(event.GetIDCode());
++    }
++
++    void InputSink::RetireHotkeyCaptureReleases(std::size_t precedingButtons)
++    {
++        std::scoped_lock lock(lock_);
++        std::erase_if(captureReleases_, [&](const auto& release) {
++            if (release.first > precedingButtons) return false;
++            heldKeys_.erase(release.second);
++            return true;
++        });
++    }
++
++    void InputSink::FinishHotkeyCaptureReleases()
++    {
++        RetireHotkeyCaptureReleases((std::numeric_limits<std::size_t>::max)());
+     }
+ 
+     RE::BSEventNotifyControl InputSink::ProcessEvent(RE::InputEvent* const* const a_events,
+         RE::BSTEventSource<RE::InputEvent*>*)
+     {
+         if (!a_events) return RE::BSEventNotifyControl::kContinue;
+-        if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen(RE::Console::MENU_NAME)) {
+-            return RE::BSEventNotifyControl::kContinue;
+-        }
+-
++        auto* ui = RE::UI::GetSingleton();
++        const bool consoleOwnsInput = ui && ui->IsMenuOpen(RE::Console::MENU_NAME);
++
++        std::size_t precedingButtons{};
+         for (auto* event = *a_events; event; event = event->next) {
+             if (event->GetDevice() != RE::INPUT_DEVICE::kKeyboard ||
+                 event->GetEventType() != RE::INPUT_EVENT_TYPE::kButton) {
+                 continue;
+             }
+-            if (const auto* button = event->AsButtonEvent()) ProcessKeyboardButton(*button);
+-        }
++            if (const auto* button = event->AsButtonEvent()) {
++                RetireHotkeyCaptureReleases(precedingButtons++);
++                if (consoleOwnsInput) ObserveKeyboardButton(*button);
++                else ProcessKeyboardButton(*button);
++            }
++        }
++        FinishHotkeyCaptureReleases();
+         return RE::BSEventNotifyControl::kContinue;
+     }
+ 
+--- a/BodyChangeNG-PSQ/src/BodyChangeNG/InputSink.h
++++ b/BodyChangeNG-PSQ/src/BodyChangeNG/InputSink.h
+@@ -4,8 +4,11 @@
+ #include <RE/I/InputEvent.h>
+ 
+ #include <atomic>
++#include <cstddef>
+ #include <mutex>
+ #include <unordered_set>
++#include <utility>
++#include <vector>
+ 
+ namespace bcn
+ {
+@@ -19,12 +22,20 @@
+         void CancelHotkeyCapture();
+         void ResetTransientState();
+         [[nodiscard]] bool IsCapturingHotkey() const noexcept;
++        // Called before gameplay filtering: captured presses stay private,
++        // but their releases must still retire this sink's held-key state.
++        void ProcessHotkeyCaptureButton(const RE::ButtonEvent& a_event);
++        // Observe console-owned edges without invoking capture or shortcuts.
++        void ObserveKeyboardButton(const RE::ButtonEvent& a_event);
++        void QueueHotkeyCaptureRelease(std::uint32_t a_scanCode, std::size_t a_precedingButtons);
++        void FinishHotkeyCaptureReleases();
+ 
+         RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* a_events,
+             RE::BSTEventSource<RE::InputEvent*>*) override;
+ 
+     private:
+         void ProcessKeyboardButton(const RE::ButtonEvent& a_event);
++        void RetireHotkeyCaptureReleases(std::size_t a_precedingButtons);
+         void RequestToggle(std::string_view a_source);
+         void StartFocusedWindowHotkeyFallback();
+         [[nodiscard]] bool CtrlDown() const noexcept;
+@@ -33,6 +44,8 @@
+ 
+         mutable std::mutex lock_;
+         std::unordered_set<std::uint32_t> heldKeys_;
++        // Values only, scoped to the current filtered dispatcher call.
++        std::vector<std::pair<std::size_t, std::uint32_t>> captureReleases_;
+         std::atomic_bool registered_{ false };
+         std::atomic_bool capture_{ false };
+         std::atomic_bool focusedWindowFallbackStarted_{ false };
+--- a/BodyChangeNG-PSQ/src/BodyChangeNG/PresetCatalog.cpp
++++ b/BodyChangeNG-PSQ/src/BodyChangeNG/PresetCatalog.cpp
+@@ -36,9 +36,21 @@
+ 
+     [[nodiscard]] bool IsMaleSet(const std::string& value)
+     {
+-        constexpr std::array markers{ "himbo"sv, "talos"sv, "sam"sv, "sos"sv, "savren"sv };
++        constexpr std::array markers{ "himbo"sv, "talos"sv, "sam"sv, "sos"sv, "savren"sv, "savrenx"sv };
+         const auto lowered = ToLowerAscii(value);
+-        return std::ranges::any_of(markers, [&lowered](const auto marker) { return lowered.contains(marker); });
++        for (const auto marker : markers) {
++            auto offset = lowered.find(marker);
++            while (offset != std::string::npos) {
++                const auto end = offset + marker.size();
++                const auto boundary = [&](const std::size_t i) {
++                    return std::isalnum(static_cast<unsigned char>(lowered[i])) == 0;
++                };
++                if ((offset == 0U || boundary(offset - 1U)) &&
++                    (end == lowered.size() || boundary(end))) return true;
++                offset = lowered.find(marker, offset + 1U);
++            }
++        }
++        return false;
+     }
+ 
+     [[nodiscard]] bool IsDefaultUnpSlider(const std::string_view name)
+--- a/BodyChangeNG-PSQ/src/BodyChangeNG/TextInputFilter.cpp
++++ b/BodyChangeNG-PSQ/src/BodyChangeNG/TextInputFilter.cpp
+@@ -15,6 +15,7 @@
+ #include <cstring>
+ #include <mutex>
+ #include <unordered_set>
++#include <utility>
+ 
+ namespace
+ {
+@@ -36,6 +37,9 @@
+     std::unordered_set<std::uint32_t> g_downKeyboardButtons;
+     std::unordered_set<std::uint32_t> g_preSuppressionButtons;
+     std::unordered_set<std::uint32_t> g_swallowedUntilReleaseButtons;
++    // Only these keys entered InputSink before normal dispatch. Their releases
++    // retire capture state privately; ordinary releases keep dispatcher order.
++    std::unordered_set<std::uint32_t> g_captureButtonsUntilRelease;
+     std::unordered_set<std::uint32_t> g_releaseMustPassButtons;
+     std::unordered_set<std::uint32_t> g_preMenuNavigationButtons;
+     std::unordered_set<std::uint32_t> g_swallowedMenuNavigationUntilReleaseButtons;
+@@ -49,7 +53,7 @@
+     using PollInputDevices = void(RE::BSTEventSource<RE::InputEvent*>*, RE::InputEvent**);
+     REL::Relocation<PollInputDevices> g_originalPollInputDevices;
+ 
+-    void ResetLocked() noexcept
++    void ResetLocked(bool preserveCapturedButtons = false) noexcept
+     {
+         g_keyboardActions.Reset();
+         g_gamepadActions.Reset();
+@@ -57,6 +61,7 @@
+         g_downKeyboardButtons.clear();
+         g_preSuppressionButtons.clear();
+         g_swallowedUntilReleaseButtons.clear();
++        if (!preserveCapturedButtons) g_captureButtonsUntilRelease.clear();
+         g_releaseMustPassButtons.clear();
+         g_preMenuNavigationButtons.clear();
+         g_swallowedMenuNavigationUntilReleaseButtons.clear();
+@@ -81,15 +86,31 @@
+         std::scoped_lock lock(g_filterLock);
+         if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen(RE::Console::MENU_NAME)) {
+             // Skyrim and console/IME extensions own keyboard input while the
+-            // console is open. Never consume Enter or a stale key release.
+-            ResetLocked();
++            // console is open. Observe only state: a prior sink can stop normal
++            // dispatch, but real modifier-ups must still retire held state.
++            auto heldButtons = std::move(g_downKeyboardButtons);
++            for (auto* event = *events; event; event = event->next) {
++                if (event->GetDevice() == RE::INPUT_DEVICE::kKeyboard) {
++                    if (const auto* button = event->AsButtonEvent()) {
++                        bcn::InputSink::Get().ObserveKeyboardButton(*button);
++                        if (button->IsUp()) g_captureButtonsUntilRelease.erase(button->GetIDCode());
++                        if (button->IsUp()) heldButtons.erase(button->GetIDCode());
++                        else if (button->IsPressed()) heldButtons.insert(button->GetIDCode());
++                    }
++                }
++            }
++            // A captured modifier still physically held across the console
++            // retains ownership until its real key-up, wherever it arrives.
++            ResetLocked(true);
++            g_downKeyboardButtons = std::move(heldButtons);
+             return;
+         }
+ 
+-        const bool suppressionActive = bcn::native_ui::WantsTextInput();
++        const bool hotkeyCaptureActive = bcn::InputSink::Get().IsCapturingHotkey();
++        const bool suppressionActive = bcn::native_ui::WantsTextInput() || hotkeyCaptureActive;
+         const bool menuNavigationSuppressionActive = bcn::native_ui::IsOpen();
+         const bool actionInputActive = menuNavigationSuppressionActive &&
+-            !bcn::InputSink::Get().IsCapturingHotkey();
++            !hotkeyCaptureActive;
+         const auto bindingsFor = [actionInputActive](const RE::INPUT_DEVICE device) {
+             bcn::input::MenuActionBindings bindings;
+             if (actionInputActive) {
+@@ -150,12 +171,27 @@
+         g_mouseSuppressionWasActive = mouseSuppressionActive;
+ 
+         auto** link = events;
++        std::size_t forwardedKeyboardButtons{};
+         while (*link) {
+             auto* event = *link;
+             bool blockEvent{};
++            bool capturedRelease{};
+ 
+             if (const auto* button = event->AsButtonEvent()) {
+                 const auto device = event->GetDevice();
++                if (device == RE::INPUT_DEVICE::kKeyboard) {
++                    const auto scanCode = button->GetIDCode();
++                    auto& sink = bcn::InputSink::Get();
++                    if (button->IsDown() && sink.IsCapturingHotkey() &&
++                        !g_downKeyboardButtons.contains(scanCode)) {
++                        g_captureButtonsUntilRelease.insert(scanCode);
++                    }
++                    capturedRelease = button->IsUp() &&
++                        g_captureButtonsUntilRelease.erase(scanCode) != 0U;
++                    if (hotkeyCaptureActive) {
++                        sink.ProcessHotkeyCaptureButton(*button);
++                    }
++                }
+                 if (device == RE::INPUT_DEVICE::kKeyboard || device == RE::INPUT_DEVICE::kGamepad) {
+                     auto& tracker = device == RE::INPUT_DEVICE::kKeyboard ?
+                         g_keyboardActions : g_gamepadActions;
+@@ -182,7 +218,7 @@
+                     // key event. Preserve editing-key edges before removing
+                     // them from gameplay and shortcut sinks. Character/IME
+                     // input continues through GFxCharEvent separately.
+-                    if (suppressionActive && (button->IsDown() || release)) {
++                    if (suppressionActive && !hotkeyCaptureActive && (button->IsDown() || release)) {
+                         bcn::native_ui::SubmitTextInputKey(scanCode, !release);
+                     }
+ 
+@@ -293,9 +329,21 @@
+                 }
+             }
+ 
++            if (capturedRelease) {
++                // Keep this private key-up at its original position relative
++                // to surviving keyboard events, rather than retiring it now.
++                if (!hotkeyCaptureActive) {
++                    bcn::InputSink::Get().QueueHotkeyCaptureRelease(
++                        event->AsButtonEvent()->GetIDCode(), forwardedKeyboardButtons);
++                }
++                blockEvent = true;
++            }
+             if (blockEvent) {
+                 *link = event->next;
+             } else {
++                if (event->GetDevice() == RE::INPUT_DEVICE::kKeyboard && event->AsButtonEvent()) {
++                    ++forwardedKeyboardButtons;
++                }
+                 link = &event->next;
+             }
+         }
+@@ -313,6 +361,9 @@
+             FilterKeyboardEvents(events);
+         }
+         g_originalPollInputDevices(dispatcher, events);
++        // Also drain when no events survived or an earlier sink stopped the
++        // dispatcher. No capture release may escape into a later poll.
++        bcn::InputSink::Get().FinishHotkeyCaptureReleases();
+         bcn::frame_tasks::OnInputTick();
+     }
+ }
+--- a/BodyChangeNG-PSQ/tools/audits/Run-PrecisionAudit130.ps1
++++ b/BodyChangeNG-PSQ/tools/audits/Run-PrecisionAudit130.ps1
+@@ -23,11 +23,12 @@
+ }
+ Export-FunctionBody 'src/BodyChangeNG/FrameTasks.cpp' 'void Pump(std::uint64_t epoch)' 'frame_pump.inc'
+ Export-FunctionBody 'src/BodyChangeNG/RaceMenuBodyMorph.cpp' 'void QueueActorTask(' 'body_queue_actor.inc'
++Export-FunctionBody 'src/BodyChangeNG/RaceMenuBodyMorph.cpp' '    [[nodiscard]] bool QueueSharedVisibleMorphRefresh(' 'body_shared_refresh.inc'
+ Export-FunctionBody 'src/BodyChangeNG/RaceMenuBodyMorph.cpp' 'void ApplyVisibleMorphs(' 'body_visual_refresh.inc'
+ Export-FunctionBody 'src/BodyChangeNG/RaceMenuBodyMorph.cpp' 'void ClearPreviewNow(' 'body_clear_preview.inc'
+ Export-FunctionBody 'src/BodyChangeNG/RaceMenuBodyMorph.cpp' 'void QueueCancelPreview()' 'body_cancel_preview.inc'
+ Export-FunctionBody 'src/BodyChangeNG/RaceMenuBodyMorph.cpp' 'void QueueClearInactivePreview(' 'body_clear_inactive.inc'
+-Export-FunctionBody 'src/BodyChangeNG/RaceMenuBodyMorph.cpp' 'void QueueClearBodyChangeMorphs(' 'body_clear_default.inc'
++Export-FunctionBody 'src/BodyChangeNG/RaceMenuBodyMorph.cpp' 'ApplyResult QueueClearBodyChangeMorphs(' 'body_clear_default.inc'
+ Export-FunctionBody 'src/BodyChangeNG/RaceMenuBodyMorph.cpp' 'void QueueReapplyCurrent(' 'body_reapply.inc'
+ Export-FunctionBody 'src/BodyChangeNG/RaceMenuOverlay.cpp' 'void QueueCancelPreviews(RE::Actor* actor)' 'overlay_cancel.inc'
+ Export-FunctionBody 'src/BodyChangeNG/RaceMenuOverlay.cpp' 'void QueueReapplySaved(RE::Actor* actor)' 'overlay_reapply.inc'
+--- /dev/null
++++ b/BodyChangeNG-PSQ/scripts/Test-PackageRelease.ps1
+@@ -0,0 +1,75 @@
++#requires -Version 7.0
++param(
++    [Parameter(Mandatory)][string]$BuiltDll,
++    [Parameter(Mandatory)][string]$BuiltCacheTool
++)
++$ErrorActionPreference = 'Stop'
++$project = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
++$dll = (Resolve-Path -LiteralPath $BuiltDll).Path
++$cache = (Resolve-Path -LiteralPath $BuiltCacheTool).Path
++$config = Get-Content -LiteralPath (Join-Path $project 'xmake.lua') -Raw
++if ($config -notmatch 'local psqBridgeVersion = "(\d+\.\d+\.\d+\.\d+)"') {
++    throw 'Missing PSQ bridge release version.'
++}
++$version = $Matches[1]
++if ((Get-Item -LiteralPath $dll).VersionInfo.FileVersion -ne $version) {
++    throw 'The regression requires a real DLL with the configured resource version.'
++}
++$fixture = Join-Path ([IO.Path]::GetTempPath()) ('PSQ-package-regression-' + [Guid]::NewGuid().ToString('N'))
++New-Item -ItemType Directory -Path $fixture | Out-Null
++# No source checkout, game folder or existing release is a test destination.
++foreach ($item in Get-ChildItem -LiteralPath $project -Force) {
++    if ($item.Name -notin '.git', '.xmake', 'build', 'release', 'package') {
++        Copy-Item -LiteralPath $item.FullName -Destination $fixture -Recurse
++    }
++}
++$binaryDirectory = Join-Path $fixture "build/v$version/windows/x64/release"
++$toolDirectory = Join-Path $fixture "build/v$version/tools"
++New-Item -ItemType Directory -Path $binaryDirectory, $toolDirectory | Out-Null
++Copy-Item -LiteralPath $dll -Destination (Join-Path $binaryDirectory 'BodyChangeNG.dll')
++Copy-Item -LiteralPath $cache -Destination (Join-Path $toolDirectory 'BodyChangeNGCache.exe')
++
++# The PSQ source archive intentionally omits the upstream standalone package.
++# Synthetic guides/rules test archive assembly only; they are never a mod release.
++$package = Join-Path $fixture 'package'
++foreach ($relative in @(
++    'BodySkin/README.txt',
++    'CalienteTools/BodySlide/SliderPresets/README.txt',
++    'Futanari/README.txt',
++    'SKSE/Plugins/BodyChangeNGdistribution-README.txt',
++    'Tools/BodyChangeNG-RuleId.ps1',
++    'Tools/BodyChangeNGCache-README.txt'
++)) {
++    $file = Join-Path $package $relative
++    New-Item -ItemType Directory -Path (Split-Path -Parent $file) -Force | Out-Null
++    [IO.File]::WriteAllText($file, 'Regression fixture only; not a mod release.')
++}
++[IO.File]::WriteAllText((Join-Path $package 'SKSE/Plugins/BodyChangeNGdistribution.json'), '{"schemaVersion":8,"rules":[]}')
++
++& git -C $fixture init -b codex/package-regression | Out-Null
++if ($LASTEXITCODE) { throw 'Fixture git init failed.' }
++& git -C $fixture config user.name 'PSQ offline regression'
++if ($LASTEXITCODE) { throw 'Fixture git configuration failed.' }
++& git -C $fixture config user.email 'psq-regression@tests.invalid'
++if ($LASTEXITCODE) { throw 'Fixture git configuration failed.' }
++& git -C $fixture config core.autocrlf false
++if ($LASTEXITCODE) { throw 'Fixture git configuration failed.' }
++& git -C $fixture add --all
++if ($LASTEXITCODE) { throw 'Fixture git add failed.' }
++& git -C $fixture -c core.hooksPath=NUL commit -q -m 'Isolated package regression inputs'
++if ($LASTEXITCODE) { throw 'Fixture git commit failed.' }
++& (Join-Path $fixture 'scripts/Package-Release.ps1') -RepositoryRoot $fixture
++$binaryZip = Join-Path $fixture "release/Body Change NG v$version.zip"
++$sourceZip = Join-Path $fixture "release/Body Change NG v$version Source.zip"
++if (!(Test-Path -LiteralPath $binaryZip) -or !(Test-Path -LiteralPath $sourceZip)) {
++    throw 'The release entry point did not produce both verified archives.'
++}
++[pscustomobject]@{
++    Passed = $true
++    Version = $version
++    Fixture = $fixture
++    BinaryArchive = $binaryZip
++    SourceArchive = $sourceZip
++    GameRuntimeTested = $false
++    SyntheticStandalonePackage = $true
++} | ConvertTo-Json -Compress
+--- /dev/null
++++ b/BodyChangeNG-PSQ/tests/HotkeyCaptureTests.cpp
+@@ -0,0 +1,272 @@
++#include "BodyChangeNG/Hotkey.h"
++#include "BodyChangeNG/MenuActionInput.h"
++#include <algorithm>
++#include <array>
++#include <atomic>
++#include <cstdint>
++#include <iostream>
++#include <limits>
++#include <mutex>
++#include <stdexcept>
++#include <string>
++#include <unordered_set>
++#include <utility>
++#include <vector>
++
++// The upstream filter, capture entry, keyboard dispatch and capture state
++// methods are extracted unchanged. Only engine/UI/settings boundaries are fake.
++namespace RE {
++enum class INPUT_DEVICE { kKeyboard, kMouse, kGamepad };
++enum class INPUT_EVENT_TYPE { kButton, kMouseMove };
++enum class BSEventNotifyControl { kContinue };
++struct ButtonEvent;
++struct InputEvent {
++    INPUT_DEVICE device{INPUT_DEVICE::kKeyboard};
++    INPUT_EVENT_TYPE type{INPUT_EVENT_TYPE::kButton};
++    InputEvent* next{};
++    ButtonEvent* AsButtonEvent();
++    INPUT_DEVICE GetDevice() const { return device; }
++    INPUT_EVENT_TYPE GetEventType() const { return type; }
++};
++struct ButtonEvent : InputEvent {
++    std::uint32_t id{};
++    int edge{};
++    std::uint32_t GetIDCode() const { return id; }
++    bool IsPressed() const { return edge != 2; }
++    bool IsDown() const { return edge == 0; }
++    bool IsUp() const { return edge == 2; }
++};
++ButtonEvent* InputEvent::AsButtonEvent() { return type == INPUT_EVENT_TYPE::kButton ? static_cast<ButtonEvent*>(this) : nullptr; }
++struct BSWin32MouseDevice { enum class Key { kLeftButton=0, kRightButton=1, kWheelUp=8, kWheelDown=9 }; };
++struct Console { static constexpr auto MENU_NAME="Console"; };
++struct UI {
++    static inline bool console{};
++    static UI* GetSingleton() { static UI value; return &value; }
++    bool IsMenuOpen(const char*) const { return console; }
++};
++struct ControlMap {
++    enum class InputContextID { kGameplay, kMenuMode };
++    static ControlMap* GetSingleton() { static ControlMap value; return &value; }
++    unsigned GetMappedKey(const char*, INPUT_DEVICE, InputContextID context) const { return context == InputContextID::kGameplay ? 0x12 : 1; }
++};
++template<class T> struct BSTEventSource {};
++}
++namespace REL {
++template<class T> struct Relocation {
++    T* callback{};
++    template<class... Args> decltype(auto) operator()(Args&&... args) const {
++        return callback(std::forward<Args>(args)...);
++    }
++};
++}
++namespace bcn {
++namespace frame_tasks { void OnInputTick() {} }
++namespace native_ui {
++bool open{true}, typing{};
++unsigned textEvents{}, navigationEvents{}, actions{}, escapes{}, toggles{};
++bool IsOpen() { return open; }
++bool WantsTextInput() { return typing; }
++void SetMenuActionHeld(bool) {}
++void SubmitActivate() { ++actions; }
++void SubmitCancel() { ++actions; }
++void SubmitEscape() { ++escapes; }
++void SubmitTextInputKey(unsigned, bool) { ++textEvents; }
++void SubmitMenuNavigationKey(unsigned, bool) { ++navigationEvents; }
++void SubmitGameMouseButton(unsigned, bool, bool) {}
++}
++namespace ui {
++void Notify(const std::string&) {}
++const char* Localize(const char*, const char* english, const char*) { return english; }
++}
++struct Settings {
++    struct Values { input::HotkeyChord openHotkey; } values;
++    unsigned saves{};
++    static Settings& Get() { static Settings settings; return settings; }
++    Values Snapshot() const { return values; }
++    void Update(Values next) { values=next; }
++    bool Save() { ++saves; return true; }
++};
++class InputSink {
++public:
++    static InputSink& Get() { static InputSink sink; return sink; }
++    void BeginHotkeyCapture();
++    void CancelHotkeyCapture();
++    void ResetTransientState();
++    bool IsCapturingHotkey() const noexcept;
++    void ProcessHotkeyCaptureButton(const RE::ButtonEvent&);
++    void ObserveKeyboardButton(const RE::ButtonEvent&);
++    void QueueHotkeyCaptureRelease(std::uint32_t, std::size_t);
++    void FinishHotkeyCaptureReleases();
++    RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const*, RE::BSTEventSource<RE::InputEvent*>*);
++private:
++    void ProcessKeyboardButton(const RE::ButtonEvent&);
++    void RetireHotkeyCaptureReleases(std::size_t);
++    void RequestToggle(std::string_view) { ++native_ui::toggles; }
++    bool CtrlDown() const noexcept;
++    bool ShiftDown() const noexcept;
++    bool AltDown() const noexcept;
++    mutable std::mutex lock_;
++    std::unordered_set<unsigned> heldKeys_;
++    std::vector<std::pair<std::size_t,std::uint32_t>> captureReleases_;
++    std::atomic_bool capture_{};
++};
++}
++namespace {
++constexpr unsigned kEscape=1;
++constexpr std::array kCtrl{0x1DU,0x9DU}, kShift{0x2AU,0x36U}, kAlt{0x38U,0xB8U};
++bool Contains(const std::unordered_set<unsigned>& keys, const std::array<unsigned,2>& candidates) {
++    return std::ranges::any_of(candidates,[&](auto key){return keys.contains(key);});
++}
++}
++#include "capture_input_production.inc"
++namespace {
++#include "capture_filter_production.inc"
++unsigned checks{};
++bool dispatchToSink{true};
++void Dispatch(RE::BSTEventSource<RE::InputEvent*>*, RE::InputEvent** head) {
++    if(dispatchToSink&&head&&*head) bcn::InputSink::Get().ProcessEvent(head,nullptr);
++}
++void Check(bool value, const char* message) { ++checks; if(!value) throw std::runtime_error(message); }
++void Reset() {
++    ResetLocked(); bcn::InputSink::Get().ResetTransientState();
++    bcn::Settings::Get()={}; RE::UI::console=false;
++    bcn::native_ui::open=true; bcn::native_ui::typing=false;
++    bcn::native_ui::textEvents=bcn::native_ui::navigationEvents=bcn::native_ui::actions=bcn::native_ui::escapes=bcn::native_ui::toggles=0;
++    g_originalPollInputDevices.callback=&Dispatch; dispatchToSink=true;
++}
++bool Key(unsigned id, int edge) {
++    RE::ButtonEvent event; event.id=id; event.edge=edge;
++    RE::InputEvent* head=&event; HookedPollInputDevices(nullptr,&head);
++    return head!=nullptr;
++}
++void Batch(RE::InputEvent* head, bool filtered) {
++    if(filtered) HookedPollInputDevices(nullptr,&head);
++    else if(head) bcn::InputSink::Get().ProcessEvent(&head,nullptr);
++}
++}
++int main() try {
++    auto& sink=bcn::InputSink::Get(); auto& settings=bcn::Settings::Get();
++    for(auto key:{0x11U,0x1EU,0x1FU,0x20U,0x1CU,0x9CU,0xC8U,0xCBU,0xCDU,0xD0U,0x41U}) {
++        for(bool typing:{false,true}) {
++            Reset(); bcn::native_ui::typing=typing; sink.BeginHotkeyCapture();
++            Check(!Key(key,0),"captured down leaked");
++            Check(!sink.IsCapturingHotkey()&&settings.values.openHotkey.key==key&&settings.saves==1,"capture did not reach real input sink");
++            Check(!Key(key,1),"captured hold leaked");
++            Check(!Key(key,2),"captured release leaked");
++            Check(bcn::native_ui::actions==0&&bcn::native_ui::toggles==0,"capture activated menu/game shortcut");
++            sink.BeginHotkeyCapture();
++            Check(!Key(key,0)&&settings.saves==2,"second capture retained stale held key");
++            bcn::native_ui::open=false; bcn::native_ui::typing=false;
++            sink.ResetTransientState();
++            Check(!Key(key,2),"release leaked after menu close");
++        }
++    }
++    Reset(); sink.BeginHotkeyCapture();
++    Key(0x1D,0); Key(0x2A,0); Key(0x38,0); Key(0x11,0);
++    Check(settings.values.openHotkey.ctrl&&settings.values.openHotkey.shift&&settings.values.openHotkey.alt,"modifier chord lost");
++    Key(0x11,2); Key(0x1D,2); Key(0x2A,2); Key(0x38,2);
++    sink.BeginHotkeyCapture(); Key(0x1E,0);
++    Check(!settings.values.openHotkey.ctrl&&!settings.values.openHotkey.shift&&!settings.values.openHotkey.alt,"modifier releases remained held");
++    Reset(); bcn::native_ui::open=false; Check(Key(0x11,0),"preheld press should reach game");
++    bcn::native_ui::open=true; sink.BeginHotkeyCapture(); Key(0x11,1);
++    Check(sink.IsCapturingHotkey()&&settings.saves==0,"held key captured without fresh down");
++    Check(Key(0x11,2),"preheld release did not reach original owner");
++    Check(!Key(0x11,0)&&settings.saves==1,"fresh press after preheld release failed");
++    Reset(); sink.BeginHotkeyCapture(); Key(1,0);
++    Check(!sink.IsCapturingHotkey()&&settings.saves==0&&bcn::native_ui::escapes==0,"Escape did not cancel private capture");
++    Check(!Key(1,2),"cancel release leaked");
++    Reset(); sink.BeginHotkeyCapture(); RE::UI::console=true;
++    Check(Key(0x11,0)&&Key(0x11,2)&&sink.IsCapturingHotkey()&&settings.saves==0,"console input was captured");
++    RE::UI::console=false; Key(0x11,0);
++    Check(settings.saves==1,"capture did not resume after console");
++    Reset(); bcn::native_ui::open=false; Key(0x1D,0);
++    RE::UI::console=true; Key(0x1D,2); RE::UI::console=false;
++    bcn::native_ui::open=true; sink.BeginHotkeyCapture(); Key(0x11,0);
++    Check(!settings.values.openHotkey.ctrl,"console-owned modifier release remained latched");
++    Reset(); sink.BeginHotkeyCapture();
++    RE::ButtonEvent first, second; first.id=0x11; second.id=0x1E; first.next=&second;
++    RE::InputEvent* batch=&first; FilterKeyboardEvents(&batch);
++    Check(batch==nullptr&&settings.saves==1&&settings.values.openHotkey.key==0x11,
++        "same-poll second key escaped or replaced first capture");
++    Check(!Key(0x11,2)&&!Key(0x1E,2),"same-poll releases escaped");
++    Reset(); sink.BeginHotkeyCapture(); sink.CancelHotkeyCapture(); Key(0x11,0);
++    Check(settings.saves==0,"cancelled capture still saved");
++    Reset(); sink.BeginHotkeyCapture(); Key(0x11,0);
++    Check(bcn::native_ui::textEvents==0,"capture event entered editable field");
++    // Filtering runs over the whole list before InputSink sees its first item.
++    // A normal modifier-up must not run ahead of a preceding shortcut-down.
++    for(bool open:{false,true}) {
++        for(bool filtered:{false,true}) {
++            Reset(); bcn::native_ui::open=open;
++            settings.values.openHotkey={.key=0x41,.ctrl=true};
++            Key(0x1D,0);
++            RE::ButtonEvent shortcut, release; shortcut.id=0x41;
++            release.id=0x1D; release.edge=2; shortcut.next=&release;
++            Batch(&shortcut,filtered);
++            Check(bcn::native_ui::toggles==1,"filter reordered ordinary modifier release ahead of shortcut");
++            Key(0x41,2); Key(0x41,0);
++            Check(bcn::native_ui::toggles==1,"normal modifier release was not retired by dispatcher");
++        }
++    }
++    // A release that really belongs to capture stays private after capture
++    // completes, even beside a later ordinary shortcut in the next poll.
++    Reset(); sink.BeginHotkeyCapture(); Key(0x1D,0); Key(0x11,0);
++    Key(0x11,2); settings.values.openHotkey={.key=0x41};
++    RE::ButtonEvent capturedModifierRelease, plainShortcut;
++    capturedModifierRelease.id=0x1D; capturedModifierRelease.edge=2;
++    plainShortcut.id=0x41; capturedModifierRelease.next=&plainShortcut;
++    RE::InputEvent* afterCapture=&capturedModifierRelease;
++    FilterKeyboardEvents(&afterCapture);
++    Check(afterCapture==&plainShortcut,"capture-owned modifier release leaked into normal dispatch");
++    Batch(afterCapture,false);
++    Check(bcn::native_ui::toggles==1,"capture modifier remained held into next poll");
++    // Captured modifier-ups retain their position before, between and after
++    // ordinary shortcuts, even though those ups are private to InputSink.
++    for(unsigned releasePosition=0; releasePosition<3; ++releasePosition) {
++        for(bool filtered:{false,true}) {
++            Reset(); sink.BeginHotkeyCapture(); Key(0x1D,0); Key(0x11,0); Key(0x11,2);
++            settings.values.openHotkey={.key=0x41,.ctrl=true};
++            RE::ButtonEvent before, ordinaryRelease, release, after;
++            before.id=0x41; ordinaryRelease.id=0x41; ordinaryRelease.edge=2;
++            release.id=0x1D; release.edge=2; after.id=0x41;
++            RE::InputEvent* head{};
++            if(releasePosition==0) { release.next=&before; head=&release; }
++            else if(releasePosition==1) { before.next=&ordinaryRelease; ordinaryRelease.next=&release; release.next=&after; head=&before; }
++            else { before.next=&ordinaryRelease; ordinaryRelease.next=&after; after.next=&release; head=&before; }
++            Batch(head,filtered);
++            Check(bcn::native_ui::toggles==releasePosition,"capture-owned release changed ordinary shortcut order");
++            Key(0x41,2); Key(0x41,0);
++            Check(bcn::native_ui::toggles==releasePosition,"captured release survived into the next poll");
++        }
++    }
++    Reset(); sink.BeginHotkeyCapture(); Key(0x11,0);
++    dispatchToSink=false; Check(!Key(0x11,2),"no-sink release leaked");
++    dispatchToSink=true; sink.BeginHotkeyCapture(); Key(0x11,0);
++    Check(settings.saves==2,"no-sink tail did not retire captured release");
++    for(auto modifier:{0x1DU,0x2AU,0x38U}) {
++      for(bool captureOwned:{false,true}) {
++        for(bool stopSink:{false,true}) {
++            for(bool releaseInConsole:{false,true}) {
++                Reset();
++                if(captureOwned) { sink.BeginHotkeyCapture(); Key(modifier,0); Key(0x41,0); Key(0x41,2); }
++                else { bcn::native_ui::open=false; Key(modifier,0); }
++                RE::UI::console=true; dispatchToSink=!stopSink;
++                Check(Key(0x29,0)&&Key(0x29,2),"console tilde edges were consumed");
++                if(releaseInConsole) Check(Key(modifier,2),"console modifier release was consumed");
++                RE::UI::console=false; dispatchToSink=true; bcn::native_ui::open=true;
++                sink.BeginHotkeyCapture();
++                if(!releaseInConsole) Key(modifier,1);
++                Key(0x11,0);
++                const auto chord=settings.values.openHotkey;
++                const bool present=modifier==0x1D?chord.ctrl:modifier==0x2A?chord.shift:chord.alt;
++                Check(present==!releaseInConsole,"console observation lost held modifier or retained released modifier");
++                Key(0x11,2); Key(modifier,2);
++                sink.BeginHotkeyCapture(); Key(0x1E,0);
++                const auto next=settings.values.openHotkey;
++                Check(!next.ctrl&&!next.shift&&!next.alt,"post-console capture-owned release did not retire modifier");
++            }
++        }
++      }
++    }
++    std::cout<<"PASS "<<checks<<" real capture/filter pipeline checks\n";
++} catch(const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
