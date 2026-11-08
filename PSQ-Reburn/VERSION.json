@@ -1,7 +1,7 @@
 {
   "name": "PSQ Reburn",
-  "version": "0.28",
-  "date": "2026-11-06",
+  "version": "0.29",
+  "date": "2026-11-08",
   "channel": "test-release",
   "optional_modules_separate": [
     "Wingflight",
@@ -132,8 +132,8 @@
     "source_tests": 262,
     "game_runtime_tested": false
   },
-  "package_revision": 64,
-  "display_version": "v0.26",
+  "package_revision": 65,
+  "display_version": "v0.29 fork",
   "version_relabel": {
     "date": "2026-10-26",
     "previous_package_label": "0.22",
@@ -1080,8 +1080,8 @@
     "automatic_takeoff_landing_wing_toggle_added": false,
     "game_runtime_tested": false,
     "PEX_sha256": {
-      "playersuccubusquestscript.pex": "89e45df37f7cc10198272b5244d9a5518246e5567ca3c8c32ab8354eccc34383",
-      "playersuccubusmenu.pex": "cc98aa05c267654335016468b3b921198db47bc9cc02226f418a7db30ce0bd26",
+      "playersuccubusquestscript.pex": "bf286a77d319697799d596c225e5d2c28a58b11e19d0834ea637162f831df850",
+      "playersuccubusmenu.pex": "91da4c5dc789c35e06d64ebf2641f84cd92a33b681edcf07ac5c76a4d686886e",
       "PSQAWUWings.pex": "8046c41bcc479f6256b183400d9d560399cb99ea9df7f634966948e53196a2fe"
     },
     "pending_wing_restore_preserved_on_reenable": true,
@@ -1128,11 +1128,72 @@
     "external_mods_modified": false,
     "game_runtime_tested": false,
     "PEX_sha256": {
-      "playersuccubusmenu.pex": "cc98aa05c267654335016468b3b921198db47bc9cc02226f418a7db30ce0bd26",
-      "playersuccubusquestscript.pex": "89e45df37f7cc10198272b5244d9a5518246e5567ca3c8c32ab8354eccc34383",
+      "playersuccubusmenu.pex": "91da4c5dc789c35e06d64ebf2641f84cd92a33b681edcf07ac5c76a4d686886e",
+      "playersuccubusquestscript.pex": "bf286a77d319697799d596c225e5d2c28a58b11e19d0834ea637162f831df850",
       "PSQAWUWings.pex": "8046c41bcc479f6256b183400d9d560399cb99ea9df7f634966948e53196a2fe",
       "PSQDXUBE.pex": "bd07f57c3e638ca53168fecfcd8e0fc08b9b5bf281d70d6b0648654e9a8e7ca3",
       "psqhenshintargeteffectscript.pex": "28e8f1c16ca0214a178162db35ecd94e195f8d16eec3e429c563c0fbde0de456"
     }
+  },
+  "upstream_integration_20261108": {
+    "fork_baseline": "ad9ece412dc91342762832648b6ee161cccae367",
+    "upstream": "54575f64f9047bfe113cd34a27e73bdfb161c38f",
+    "common_base": "cc286d489fd805be72d28a143104d9ca5d24e566",
+    "satiation_mode": "off_or_three_tier_experience",
+    "satiation_thresholds": {
+      "hungry_enter": 0.3,
+      "hungry_exit": 0.35,
+      "full_enter": 0.8,
+      "full_exit": 0.75,
+      "refresh_real_seconds": 10
+    },
+    "drain_XP_multipliers": {
+      "hungry": 1.1,
+      "normal": 1.0,
+      "full": 0.9
+    },
+    "skill_practice_multipliers": {
+      "hungry": 0.9,
+      "normal": 1.0,
+      "full": 1.1
+    },
+    "old_satiation_attribute_modifiers_retired": true,
+    "merchant_gold_per_rank": 10000,
+    "merchant_gold_refresh_game_hours": 24,
+    "merchant_removed_spell_book_types": 31,
+    "merchant_added_empty_black_soul_gems": 10,
+    "apropos_default_enabled": false,
+    "apropos_optional_directory": "Optional/90-Apropos修复",
+    "only_clothing_provider": "Helena Succubus [SE].esp",
+    "AWU_wings_retained": 83,
+    "Helena_outfit_wings_slot": 45,
+    "AWU_wings_slot": 47,
+    "installation_layout": "fork_flat_core_with_explicit_optional_components",
+    "fomod_installer_in_repository": false,
+    "current_BCNG_DLL_sha256": "85d1c8c66fda45d21a78bb9d12650e581dcd93209642e7791226c5ebc2795a17",
+    "current_BCNG_source_archive_sha256": "a6fa8bdb2ed1cb9b4648fff3297af3da0708f09a06cb03938519fc4319f59d13",
+    "PEX_sha256": {
+      "playersuccubusmenu.pex": "91da4c5dc789c35e06d64ebf2641f84cd92a33b681edcf07ac5c76a4d686886e",
+      "playersuccubusquestscript.pex": "bf286a77d319697799d596c225e5d2c28a58b11e19d0834ea637162f831df850",
+      "psqaproposrepairscript.pex": "c8531f0419891eed201d899bd27457c2252095b255f301888d46d1264585e221"
+    },
+    "ESM_sha256": "6b22c3be08969ab0578b5151e450ed92a09f2dd49e65d7843c1e1029cacddbaf",
+    "external_mods_modified": false,
+    "game_runtime_tested": false
+  },
+  "satiation_refill_fix_20261108": {
+    "changed_function": "AreEntryStatEffectsReady",
+    "retired_satiation_spells_must_be_absent": [
+      "A",
+      "B",
+      "C"
+    ],
+    "transform_and_continuous_readiness_checks_preserved": true,
+    "unchanged_functions_byte_identical": 594,
+    "persistent_layout_byte_identical": true,
+    "official_target_compile": true,
+    "full_source_rebuild": false,
+    "PEX_sha256": "bf286a77d319697799d596c225e5d2c28a58b11e19d0834ea637162f831df850",
+    "game_runtime_tested": false
   }
 }

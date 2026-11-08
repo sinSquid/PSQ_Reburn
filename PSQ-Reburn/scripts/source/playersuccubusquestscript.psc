@@ -1410,6 +1410,7 @@ EndFunction
 
 Function SuccubusDrain(Actor Target, Float DrainValue, Bool PlayerIsVictim, Bool PlayerIsAggressor, Bool CanExtractSemenPotion, Bool CanImpregnant, Bool IsOral, Bool CumInflation, Bool IsMalePosition, Bool RealPenis)
   If EnableDrain
+    Float SatiationExperience = Self.GetSatiationExperienceMultiplier()
     If UseArousalAtDrain
       DrainValue = Self.ProcessingArousal(Target, DrainValue)
     EndIf
@@ -1432,7 +1433,7 @@ Function SuccubusDrain(Actor Target, Float DrainValue, Bool PlayerIsVictim, Bool
       Self.DrainNPCAttributes(Target)
       Self.DrainNPCRacialTrait(Target)
     EndIf
-    Float IncreaseEXP = storageutil.GetFloatValue(PlayerRef as Form, "PSQ_IncreaseEXP", 0.0) + DrainEnergy / (SuccubusRank.GetValue() * 100.0)
+    Float IncreaseEXP = storageutil.GetFloatValue(PlayerRef as Form, "PSQ_IncreaseEXP", 0.0) + (DrainEnergy / (SuccubusRank.GetValue() * 100.0)) * SatiationExperience
     storageutil.SetFloatValue(PlayerRef as Form, "PSQ_IncreaseEXP", IncreaseEXP)
     Debug.Trace("[PSQ DrainMath] denom=rank*100; drained=" + DrainEnergy + "; rank=" + SuccubusRank.GetValue() + "; pendingEXP=" + IncreaseEXP, 0)
     If !Target.HasKeywordString("ActorTypeNPC")
@@ -2625,6 +2626,12 @@ Function PSQReloadCore(Int LoadEpoch)
     EndIf
   EndIf
   AproposRepairTicket += 1
+  If PlayerRef && !Self.IsAproposRepairPatchInstalled()
+    Self.SyncManagedSpell(Self.GetAproposRepairSpell(), False)
+    If !Self.IsPSQLoadCurrent(LoadEpoch)
+      Return
+    EndIf
+  EndIf
   AttributeDrainBusy = False
   AppliedBreastScale = -1.0
   AppliedEnergyDisplayPercent = -1.0
@@ -2783,6 +2790,17 @@ Function PSQReloadCore(Int LoadEpoch)
     Return
   EndIf
   If Self.IsPSQLoadCurrent(LoadEpoch)
+    If PlayerRef
+      If PlayerIsSuccubus.GetValueInt() == 1 && Self.GetSatiationEffectMode() != 0 && !UninstallPrepared && !UninstallCleanupBusy
+        StorageUtil.UnsetFloatValue(PlayerRef, "PSQ_SatiationXPCheck")
+        Float CurrentMultiplier = Self.GetSatiationExperienceMultiplier()
+      Else
+        Self.SyncSatiationSkillPerks(1)
+      EndIf
+    EndIf
+    If !Self.IsPSQLoadCurrent(LoadEpoch)
+      Return
+    EndIf
     PSQReloadCompletedEpoch = LoadEpoch
   EndIf
 EndFunction
@@ -3778,6 +3796,7 @@ Function QuitSuccubus()
       Return
     EndIf
     PlayerIsSuccubus.SetValue(0.0)
+    Self.SyncSatiationSkillPerks(1)
     Self.SyncWingflightPolicy()
     If SEBU != None
       SEBU.SyncVisibility()
@@ -4813,12 +4832,7 @@ Float Function GetRankSpeedBonus(Bool Transformed)
 EndFunction
 
 Float Function GetTotalSpeedBonus(Float Satiation)
-  If PlayerIsSuccubus.GetValueInt() != 1
-    Return 0.0
-  EndIf
-  Float Bonus = Self.GetRankSpeedBonus(IsHenshined)
-  Bonus += Self.GetSatiationModifier(Satiation, SpeedBuffInc, SpeedBuffDec, 50.0, 20.0)
-  Return Bonus
+  Return Self.GetRankSpeedBonus(IsHenshined)
 EndFunction
 
 Function SaveDefaultTattooProperty(Int PSQKey, Int Index, Int Kind)
@@ -5862,10 +5876,7 @@ String Function GetEvolvingSuccubusTattooTexture(Int Rank)
 EndFunction
 
 Int Function GetSatiationEffectMode()
-  If SatiationEffectMode >= 0 && SatiationEffectMode <= 2
-    Return SatiationEffectMode
-  EndIf
-  If EnableSatiationEffect
+  If SatiationEffectMode == 1 || SatiationEffectMode == 2
     Return 1
   EndIf
   Return 0
@@ -5875,8 +5886,16 @@ Function SetSatiationEffectMode(Int Mode)
   If Mode < 0 || Mode > 2
     Return
   EndIf
+  If Mode == 2
+    Mode = 1
+  EndIf
   SatiationEffectMode = Mode
   EnableSatiationEffect = Mode != 0
+  StorageUtil.UnsetIntValue(PlayerRef, "PSQ_SatiationXPTier")
+  StorageUtil.UnsetFloatValue(PlayerRef, "PSQ_SatiationXPCheck")
+  If Mode == 0
+    Self.SyncSatiationSkillPerks(1)
+  EndIf
   SatiationLastAttributeRefresh = -10.0
   Self.Satiety(0.0)
 EndFunction
@@ -5892,23 +5911,8 @@ Float Function GetSatiationRankScale()
 EndFunction
 
 Float Function GetSatiationModifier(Float Satiation, Float Increase, Float Decrease, Float DefaultIncrease, Float DefaultDecrease)
-  Int Mode = Self.GetSatiationEffectMode()
-  If Mode == 0
-    Return 0.0
-  ElseIf Mode == 2
-    Float EnergyFactor = Satiation * 2.0 - 1.0
-    If EnergyFactor < -1.0
-      EnergyFactor = -1.0
-    ElseIf EnergyFactor > 1.0
-      EnergyFactor = 1.0
-    EndIf
-    Float RankScale = Self.GetSatiationRankScale()
-    If EnergyFactor < 0.0
-      Return EnergyFactor * DefaultDecrease * (1.0 - RankScale) / 0.899999976
-    EndIf
-    Return EnergyFactor * DefaultIncrease * RankScale
-  EndIf
-  Return Satiation * Increase - Decrease
+  ; Retired attribute modifiers. Kept for old saved callers only.
+  Return 0.0
 EndFunction
 
 Function MigrateHybridDefault()
@@ -6378,6 +6382,15 @@ Function RefreshSatiationPresentation(Float EnergyRatio)
 EndFunction
 
 Function RefreshSatiationAttributes(Float Manpukudo)
+  Float ExperienceMultiplier = Self.GetSatiationExperienceMultiplier()
+  If PlayerRef == None
+    Return
+  EndIf
+  If !PlayerRef.HasSpell(SuccubusSatiatySpellA) && !PlayerRef.HasSpell(SuccubusSatiatySpellB) && !PlayerRef.HasSpell(SuccubusSatiatySpellC)
+    SatiationRefreshPending = False
+    Self.RefreshManagedMovement(Self.GetRankSpeedBonus(IsHenshined))
+    Return
+  EndIf
   Int Owner = AppearanceOperationId
   Int PoolEpoch = Self.BeginStatPoolEdit(Owner, False)
   If PoolEpoch < 0
@@ -6411,16 +6424,11 @@ Function RefreshSatiationAttributesCore(Float Manpukudo, Int Owner, Int PoolEpoc
     Debug.Trace("[PSQ] Satiation health records missing; install the matching ESM and script together", 2)
     Return
   EndIf
-  Float RefreshNow = Utility.GetCurrentRealTime()
-  Bool SameContext = False
-  If StableCachedSatiationInputs as Bool && StableCachedSatiationInputs.Length == 26
-    SameContext = (StableCachedSatiationInputs[1] == Self.GetSatiationEffectMode() as Float) && (StableCachedSatiationInputs[2] == SuccubusRank.GetValueInt() as Float) && (StableCachedSatiationInputs[3] == PlayerIsSuccubus.GetValueInt() as Float) && StableCachedSatiationInputs[4] != 0.0 == IsHenshined && StableCachedSatiationInputs[5] != 0.0 == EnableRankSpeedBonus
-  EndIf
-  Float Elapsed = RefreshNow - SatiationLastAttributeRefresh
-  If SameContext && Elapsed >= 0.0 && Elapsed < 10.0
-    Self.QueueTimedSatiationRefresh()
+  Self.RemoveLegacySatiationC(Owner, PoolEpoch)
+  If !Self.IsStatPoolEditCurrent(PoolEpoch, Owner)
     Return
   EndIf
+  Float RefreshNow = Utility.GetCurrentRealTime()
   SatiationLastAttributeRefresh = RefreshNow
   SatiationRefreshBusy = True
   SatiationRefreshPending = False
@@ -6428,19 +6436,6 @@ Function RefreshSatiationAttributesCore(Float Manpukudo, Int Owner, Int PoolEpoc
   Float SafeHealthRate = 0.0
   If Self.GetSatiationEffectMode() != 0
     SafeHealthRate = Self.GetSafeSatiationHealthRate(Self.GetSatiationModifier(EffectRatio, HealthRateBuffInc, HealthRateBuffDec, 100.0, 100.0))
-  EndIf
-  If (Self.SatiationInputsUnchanged(EffectRatio) && StableAppliedSatiationMagnitudes as Bool) && StableAppliedSatiationMagnitudes.Length == 9 && StableAppliedSatiationMagnitudes[3] == SafeHealthRate && (StableAppliedSatiationSpell == SuccubusSatiatySpellA && PlayerRef.HasSpell(SuccubusSatiatySpellA as Form) && !PlayerRef.HasSpell(SuccubusSatiatySpellB as Form) || StableAppliedSatiationSpell == SuccubusSatiatySpellB && PlayerRef.HasSpell(SuccubusSatiatySpellB as Form) && !PlayerRef.HasSpell(SuccubusSatiatySpellA as Form))
-    If !Self.AreStatPoolEffectsReady(StableAppliedSatiationSpell)
-      StableCachedSatiationInputs = EmptyFloatArray
-    Else
-      Self.RestoreSatiationRuntimeRecords(Owner, PoolEpoch)
-      Self.RefreshManagedMovement(StableAppliedSatiationMagnitudes[6])
-    SatiationRefreshBusy = False
-    If SatiationRefreshPending
-      Self.RefreshSatiationAttributes(Self.GetEnergyRatio())
-    EndIf
-      Return
-    EndIf
   EndIf
   Float[] Inputs = Self.CaptureSatiationInputs(EffectRatio)
   If !Inputs || Inputs.Length != 26
@@ -6494,7 +6489,7 @@ Function RefreshSatiationAttributesCore(Float Manpukudo, Int Owner, Int PoolEpoc
   If Desired[0] < 1.0 - OtherHealthMaximum
     Desired[0] = 1.0 - OtherHealthMaximum
   EndIf
-  Bool NeedsRefresh = !StableAppliedSatiationMagnitudes || StableAppliedSatiationMagnitudes.Length != 9 || !StableAppliedSatiationSpell || !PlayerRef.HasSpell(StableAppliedSatiationSpell as Form) || HasA && HasB || !Self.AreStatPoolEffectsReady(StableAppliedSatiationSpell)
+  Bool NeedsRefresh = True
   If !NeedsRefresh
     Int i = 0
     While i < 9 && !NeedsRefresh
@@ -6638,6 +6633,16 @@ Function RefreshSatiationAttributesCore(Float Manpukudo, Int Owner, Int PoolEpoc
   If StableAppliedSatiationMagnitudes as Bool && StableAppliedSatiationSpell as Bool
     Self.RefreshManagedMovement(Desired[6])
     Self.PublishSatiationInputs(Inputs)
+  EndIf
+  ; Only remove the replacement after the owned zero effects have settled.
+  If HealthEffectsReady && Self.IsStatPoolEditCurrent(PoolEpoch, Owner)
+    PlayerRef.RemoveSpell(NextSpell)
+    StableAppliedSatiationSpell = None
+    StableAppliedSatiationMagnitudes = EmptyFloatArray
+    StableCachedSatiationInputs = EmptyFloatArray
+    AppliedSatiationSpell = None
+    AppliedSatiationMagnitudes = EmptyFloatArray
+    CachedSatiationInputs = EmptyFloatArray
   EndIf
   SatiationRefreshBusy = False
   If SatiationRefreshPending
@@ -7829,6 +7834,7 @@ Bool Function PrepareForUninstall()
     Return False
   EndIf
   UninstallCleanupBusy = True
+  Self.SyncSatiationSkillPerks(1)
   Self.EndAppearanceEdit(CleanupOwner)
   AlternateStartBecomePending = False
   AlternateStartResumePending = False
@@ -8317,7 +8323,13 @@ Function PrepareSuccubusMerchantTrade()
       Self.RegisterForSingleUpdateGameTime(0.01)
       Return
     EndIf
-    Int Difference = 10000 - Chest.GetItemCount(Gold)
+    Int MerchantRank = SuccubusRank.GetValueInt()
+    If MerchantRank < 1
+      MerchantRank = 1
+    ElseIf MerchantRank > 10
+      MerchantRank = 10
+    EndIf
+    Int Difference = (MerchantRank * 10000) - Chest.GetItemCount(Gold)
     If Difference > 0
       Chest.AddItem(Gold, Difference, True)
     ElseIf Difference < 0
@@ -9684,10 +9696,14 @@ Bool Function SaveTransformEquipment(Int Owner, Bool RequireBusy)
   EndIf
   ; Preserve a prior incomplete exit before taking the next outfit snapshot.
   Form[] PreviousSnapshot = OrgArmorList.ToArray()
-  if !Self.CommitPendingOriginalEquipment(PreviousSnapshot, PreviousSnapshot.Length, Self.GetTransformProtectedArmor(), Owner, RequireBusy)
-    Debug.Notification("$PSQ_EquipmentRecoveryPending")
-    return False
-  endif
+  If PreviousSnapshot.Length > 0 || (TransformEquipmentRecoveryItems && TransformEquipmentRecoveryItems.Length > 0)
+    If !Self.CommitPendingOriginalEquipment(PreviousSnapshot, PreviousSnapshot.Length, Self.GetTransformProtectedArmor(), Owner, RequireBusy)
+      Debug.Notification("$PSQ_EquipmentRecoveryPending")
+      Return False
+    EndIf
+  ElseIf !Self.IsEquipmentRecoveryCurrent(Owner, RequireBusy, TailLoad)
+    Return False
+  EndIf
   OrgArmorList.Revert()
   If Owner != AppearanceOperationId || RequireBusy && !AppearanceEditBusy
     Return False
@@ -11736,24 +11752,10 @@ Armor Function GetTransformPartArmor(Int Part)
 EndFunction
 
 Bool Function GetTransformPartEnabled(Int Part)
-  If Part >= 0 && Part <= 5 && Self.GetTransformPartArmor(Part) == None
+  If !Self.IsTransformPartSelected(Part)
     Return False
   EndIf
-  If Part >= 0 && Part <= 2 && psqracecompatibility.ShouldPreserveAppearance(PlayerRef) && !PSQDXUBE.SupportsItem(PlayerRef, Self.GetTransformPartArmor(Part))
-    Return False
-  EndIf
-  If Part == 0
-    Return HenshinCuirass
-  ElseIf Part == 1
-    Return HenshinBoots
-  ElseIf Part == 2
-    Return HenshinGloves
-  ElseIf Part == 3
-    Return HenshinHorn
-  ElseIf Part == 4
-    Return HenshinTail
-  EndIf
-  Return False
+  Return Self.CanUseResolvedTransformPart(Part, Self.GetTransformPartArmor(Part))
 EndFunction
 
 Function EnsureTransformPartSources()
@@ -11815,7 +11817,7 @@ Bool Function SetIndependentTransformPart(Int Part, Int Choice)
   EndIf
   Self.EnsureTransformPartSources()
   Armor Previous = Self.GetTransformPartArmor(Part)
-  Bool WasEnabled = Self.GetTransformPartEnabled(Part)
+  Bool WasEnabled = Self.IsTransformPartSelected(Part) && Self.CanUseResolvedTransformPart(Part, Previous)
   Armor Next = Previous
   If Choice > 0
     Next = Self.GetCachedOutfitPart(Choice, Part, Owner, True)
@@ -12275,11 +12277,15 @@ Function CleanupTransformEquipmentLedger(Int Owner, Bool RequireBusy)
   EndIf
   Int RecoveryLoad = PSQLoadEpoch
   Float Started = Utility.GetCurrentRealTime()
-  Form[] Originals = OrgArmorList.ToArray()
-  Form[] Protected = Self.GetTransformProtectedArmor()
   Int Used = TransformInventoryItems.find(None, 0)
   If Used < 0
     Used = TransformInventoryItems.Length
+  EndIf
+  Form[] Originals
+  Form[] Protected
+  If Used > 0
+    Originals = OrgArmorList.ToArray()
+    Protected = Self.GetTransformProtectedArmor()
   EndIf
   Int Index = 0
   While Index < Used
@@ -12410,6 +12416,9 @@ Function OnTimedSatiationRefresh(String EventName, String Argument, Float Epoch,
 EndFunction
 
 Bool Function HasAproposRepairIntegration()
+  If !Self.IsAproposRepairPatchInstalled()
+    Return False
+  EndIf
   If Game.GetModByName("Apropos2.esp") == 255
     Return False
   EndIf
@@ -13921,28 +13930,8 @@ Function RestoreTransformRuntimeRecords(Int Owner, Int PoolEpoch)
 EndFunction
 
 Function RestoreSatiationRuntimeRecords(Int Owner, Int PoolEpoch)
-  If !SatiationRecordSyncPending || !StableAppliedSatiationMagnitudes || StableAppliedSatiationMagnitudes.Length != 9 || StableAppliedSatiationSpell == None || !PlayerRef.HasSpell(StableAppliedSatiationSpell as Form)
-    Return
-  EndIf
-  Int i = 0
-  While i < 8
-    If !Self.IsStatPoolEditCurrent(PoolEpoch, Owner)
-      Return
-    EndIf
-    Float Value = 0.0
-    If i < 6
-      Value = StableAppliedSatiationMagnitudes[i]
-    ElseIf i == 7
-      Value = StableAppliedSatiationMagnitudes[8]
-    EndIf
-    If StableAppliedSatiationSpell.GetNthEffectMagnitude(i) != Value
-      StableAppliedSatiationSpell.SetNthEffectMagnitude(i, Value)
-    EndIf
-    i += 1
-  EndWhile
-  If Self.IsStatPoolEditCurrent(PoolEpoch, Owner)
-    SatiationRecordSyncPending = False
-  EndIf
+  ; Never restore cached pre-migration attribute magnitudes on load.
+  SatiationRecordSyncPending = False
 EndFunction
 
 Float Function GetAuditedRacialHealthBonus(Spell Ability)
@@ -14015,7 +14004,8 @@ Bool Function AreEntryStatEffectsReady()
   If Self.GetContinuousAbilityMode() == 1 && !Self.AreStatPoolEffectsReady(Self.GetContinuousRankAbility())
     Return False
   EndIf
-  If Self.GetSatiationEffectMode() != 0 && !Self.AreStatPoolEffectsReady(StableAppliedSatiationSpell)
+  ; Satiation now changes XP only. Wait for retired attribute spells to clear.
+  If PlayerRef.HasSpell(SuccubusSatiatySpellA) || PlayerRef.HasSpell(SuccubusSatiatySpellB) || PlayerRef.HasSpell(SuccubusSatiatySpellC)
     Return False
   EndIf
   Return True
@@ -17276,4 +17266,132 @@ Bool Function CanUseNPCTransformOutfit()
     EndIf
   EndIf
   Return True
+EndFunction
+
+
+Bool Function CanUseResolvedTransformPart(Int Part, Armor Item)
+  If Item == None
+    Return False
+  EndIf
+  If Part >= 0 && Part <= 2 && psqracecompatibility.ShouldPreserveAppearance(PlayerRef)
+    Return PSQDXUBE.SupportsItem(PlayerRef, Item)
+  EndIf
+  Return True
+EndFunction
+
+Float Function GetSatiationExperienceMultiplier()
+  If PlayerRef == None || PlayerIsSuccubus.GetValueInt() != 1 || UninstallPrepared || UninstallCleanupBusy || Self.GetSatiationEffectMode() == 0
+    Return 1.0
+  EndIf
+  Int Tier = StorageUtil.GetIntValue(PlayerRef, "PSQ_SatiationXPTier", -1)
+  Float Now = Utility.GetCurrentRealTime()
+  Float Last = StorageUtil.GetFloatValue(PlayerRef, "PSQ_SatiationXPCheck", -10.0)
+  If Tier < 0 || Tier > 2 || Now < Last || Now - Last >= 10.0
+    Float Ratio = Self.GetEnergyRatio()
+    If Tier == 0 && Ratio < 0.35
+      Tier = 0
+    ElseIf Tier == 2 && Ratio >= 0.75
+      Tier = 2
+    ElseIf Ratio < 0.30
+      Tier = 0
+    ElseIf Ratio >= 0.80
+      Tier = 2
+    Else
+      Tier = 1
+    EndIf
+    StorageUtil.SetIntValue(PlayerRef, "PSQ_SatiationXPTier", Tier)
+    StorageUtil.SetFloatValue(PlayerRef, "PSQ_SatiationXPCheck", Now)
+    Self.SyncSatiationSkillPerks(Tier)
+  EndIf
+  If Tier == 0
+    Return 1.10
+  ElseIf Tier == 2
+    Return 0.90
+  EndIf
+  Return 1.0
+EndFunction
+
+Bool Function IsAproposRepairPatchInstalled()
+  Return MiscUtil.FileExists("Data/SKSE/Plugins/PSQ/AproposRepair.enabled")
+EndFunction
+
+Bool Function IsTransformPartSelected(Int Part)
+  If Part == 0
+    Return HenshinCuirass
+  ElseIf Part == 1
+    Return HenshinBoots
+  ElseIf Part == 2
+    Return HenshinGloves
+  ElseIf Part == 3
+    Return HenshinHorn
+  ElseIf Part == 4
+    Return HenshinTail
+  EndIf
+  Return False
+EndFunction
+
+Function RemoveLegacySatiationC(Int Owner, Int PoolEpoch)
+  If PlayerRef == None || SuccubusSatiatySpellC == None || !Self.IsStatPoolEditCurrent(PoolEpoch, Owner)
+    Return
+  EndIf
+  If !PlayerRef.HasSpell(SuccubusSatiatySpellC)
+    Return
+  EndIf
+  Float OldHealth = PlayerRef.GetAV("Health")
+  Float OldMagicka = PlayerRef.GetAV("Magicka")
+  Float OldStamina = PlayerRef.GetAV("Stamina")
+  If OldHealth > 0.0 && !PlayerRef.IsDead()
+    PlayerRef.RestoreAV("Health", PlayerRef.GetAVMax("Health"))
+  EndIf
+  PlayerRef.RemoveSpell(SuccubusSatiatySpellC)
+  Int Attempt = 0
+  Bool Pending = True
+  While Pending && Attempt < 20 && Self.IsStatPoolEditCurrent(PoolEpoch, Owner)
+    Pending = False
+    Int i = 0
+    While i < SuccubusSatiatySpellC.GetNumEffects()
+      If PlayerRef.HasMagicEffect(SuccubusSatiatySpellC.GetNthEffectMagicEffect(i))
+        Pending = True
+      EndIf
+      i += 1
+    EndWhile
+    If Pending
+      Utility.Wait(0.05)
+    EndIf
+    Attempt += 1
+  EndWhile
+  If !Self.IsStatPoolEditCurrent(PoolEpoch, Owner)
+    Return
+  EndIf
+  ; Some legacy effects are shared. Never trim health if removal is uncertain.
+  If !Pending
+    Self.PreserveSatiationCurrentValue("Health", OldHealth, PoolEpoch, Owner)
+  EndIf
+  Self.PreserveSatiationCurrentValue("Magicka", OldMagicka, PoolEpoch, Owner)
+  Self.PreserveSatiationCurrentValue("Stamina", OldStamina, PoolEpoch, Owner)
+EndFunction
+
+Function SyncSatiationSkillPerks(Int Tier)
+  If PlayerRef == None
+    Return
+  EndIf
+  Perk Hungry = Game.GetFormFromFile(45082, "PSQ PlayerSuccubusQuest.esm") as Perk
+  Perk Full = Game.GetFormFromFile(45083, "PSQ PlayerSuccubusQuest.esm") as Perk
+  If Hungry == None || Full == None
+    Return
+  EndIf
+  If Tier != 0 && PlayerRef.HasPerk(Hungry)
+    PlayerRef.RemovePerk(Hungry)
+  EndIf
+  If Tier != 2 && PlayerRef.HasPerk(Full)
+    PlayerRef.RemovePerk(Full)
+  EndIf
+  If Tier == 1 || PlayerIsSuccubus.GetValueInt() != 1 || Self.GetSatiationEffectMode() == 0 || UninstallPrepared || UninstallCleanupBusy || StorageUtil.GetIntValue(PlayerRef, "PSQ_SatiationXPTier", -1) != Tier
+    Return
+  EndIf
+  If Tier == 0 && !PlayerRef.HasPerk(Hungry)
+    PlayerRef.AddPerk(Hungry)
+  ElseIf Tier == 2 && !PlayerRef.HasPerk(Full)
+    PlayerRef.AddPerk(Full)
+  EndIf
 EndFunction

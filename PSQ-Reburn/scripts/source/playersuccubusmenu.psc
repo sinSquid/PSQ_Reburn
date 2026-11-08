@@ -160,35 +160,27 @@ Function OnPageReset(String Page)
   EndIf
   If Page == "$PSQ_Page2"
     Self.SetCursorFillMode(Self.TOP_TO_BOTTOM)
-    Int SatiationFlags = (PSQ.GetSatiationEffectMode() != 1) as Int
     Self.AddHeaderOption("$PSQ_SatiationSettings", 0)
     SatiationModeOption = Self.AddMenuOption("$PSQ_SatiationMode", Self.GetSatiationModeName(PSQ.GetSatiationEffectMode()), 0)
+    Self.AddTextOption("$PSQ_SatiationXPCurrent", ((PSQ.GetSatiationExperienceMultiplier() - 1.0) * 100.0) as Int + "%", 1)
+    Self.AddTextOption("$PSQ_SatiationXPHungry", "+10%", 1)
+    Self.AddTextOption("$PSQ_SatiationXPNormal", "0%", 1)
+    Self.AddTextOption("$PSQ_SatiationXPFull", "-10%", 1)
+    Float DrainModifier = PSQ.GetSatiationExperienceMultiplier()
+    String PracticeBonus = "0%"
+    If DrainModifier > 1.0
+      PracticeBonus = "-10%"
+    ElseIf DrainModifier < 1.0
+      PracticeBonus = "+10%"
+    EndIf
+    Self.AddTextOption("$PSQ_SatiationSkillPractice", PracticeBonus, 1)
+    Self.AddTextOption("$PSQ_SatiationXPRefresh", "$PSQ_SatiationXPRefreshValue", 1)
+    Self.SetCursorPosition(1)
     Self.AddToggleOptionST("EnableSatiationNotification", "$PSQ_EnableNotification", PSQ.EnableSatiationNotification, 0)
     Self.AddSliderOptionST("EnergyConsumptionPerMax", "$PSQ_ConsumptionRate", PSQ.EnergyConsumptionPerMax, "{0} %", 0)
-    Self.AddEmptyOption()
-    Self.AddHeaderOption("$PSQ_SatiationEffectSettings", 0)
-    Self.AddSliderOptionST("HealthBuffInc", "$PSQ_HealthBuffInc", (PSQ.HealthBuffInc - PSQ.HealthBuffDec) * 100.0, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("HealthBuffDec", "$PSQ_HealthBuffDec", -PSQ.HealthBuffDec * 100.0, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("MagickaBuffInc", "$PSQ_MagickaBuffInc", (PSQ.MagickaBuffInc - PSQ.MagickaBuffDec) * 100.0, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("MagickaBuffDec", "$PSQ_MagickaBuffDec", -PSQ.MagickaBuffDec * 100.0, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("StaminaBuffInc", "$PSQ_StaminaBuffInc", (PSQ.StaminaBuffInc - PSQ.StaminaBuffDec) * 100.0, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("StaminaBuffDec", "$PSQ_StaminaBuffDec", -PSQ.StaminaBuffDec * 100.0, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("CarryBuffInc", "$PSQ_CarryBuffInc", (PSQ.CarryBuffInc - PSQ.CarryBuffDec) * 100.0, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("CarryBuffDec", "$PSQ_CarryBuffDec", -PSQ.CarryBuffDec * 100.0, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("SpeedBuffInc", "$PSQ_SpeedBuffInc", PSQ.SpeedBuffInc - PSQ.SpeedBuffDec, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("SpeedBuffDec", "$PSQ_SpeedBuffDec", -PSQ.SpeedBuffDec, "{0} %", SatiationFlags)
-    Self.SetCursorPosition(3)
     Self.AddToggleOptionST("EnableStarvation", "$PSQ_EnableStarvationDeath", PSQ.EnableStarvation, 0)
     Self.AddToggleOptionST("EnergyModeAlt", "$PSQ_EnergyModeAlt", PSQ.EnergyModeAlt, 0)
     Self.AddSliderOptionST("MaxEnergyAtAltMode", "$PSQ_MaxEnergyAtAltMode", PSQ.MaxEnergyAtAltMode, "{0}", 0)
-    Self.AddEmptyOption()
-    Self.AddTextOptionST("SatiationBuffs", "$PSQ_SatiationBuffs", "", SatiationFlags)
-    Self.AddSliderOptionST("HealthRateBuffInc", "$PSQ_HealthRateBuffInc", PSQ.HealthRateBuffInc - PSQ.HealthRateBuffDec, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("HealthRateBuffDec", "$PSQ_HealthRateBuffDec", -PSQ.HealthRateBuffDec, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("MagickaRateBuffInc", "$PSQ_MagickaRateBuffInc", PSQ.MagickaRateBuffInc - PSQ.MagickaRateBuffDec, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("MagickaRateBuffDec", "$PSQ_MagickaRateBuffDec", -PSQ.MagickaRateBuffDec, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("StaminaRateBuffInc", "$PSQ_StaminaRateBuffInc", PSQ.StaminaRateBuffInc - PSQ.StaminaRateBuffDec, "{0} %", SatiationFlags)
-    Self.AddSliderOptionST("StaminaRateBuffDec", "$PSQ_StaminaRateBuffDec", -PSQ.StaminaRateBuffDec, "{0} %", SatiationFlags)
   EndIf
   If Page == "$PSQ_Page3"
     Self.SetCursorFillMode(Self.TOP_TO_BOTTOM)
@@ -353,11 +345,13 @@ Function OnPageReset(String Page)
       SenseFlags = 1
     EndIf
     Self.AddToggleOptionST("EnergySenseSpell", "$PSQ_EnergySenseName", PSQ.PlayerRef.HasSpell(PSQ.GetEnergySenseSpell() as Form), SenseFlags)
-    Int RepairFlags = AbilityFlags
-    If !PSQ.HasAproposRepairIntegration()
-      RepairFlags = 1
+    If PSQ.IsAproposRepairPatchInstalled()
+      Int RepairFlags = AbilityFlags
+      If !PSQ.HasAproposRepairIntegration()
+        RepairFlags = 1
+      EndIf
+      Self.AddToggleOptionST("AproposRepairSpell", "$PSQ_AproposRepairName", PSQ.PlayerRef.HasSpell(PSQ.GetAproposRepairSpell() as Form), RepairFlags)
     EndIf
-    Self.AddToggleOptionST("AproposRepairSpell", "$PSQ_AproposRepairName", PSQ.PlayerRef.HasSpell(PSQ.GetAproposRepairSpell() as Form), RepairFlags)
     Self.AddToggleOptionST("EnableSuccubusDrainHealthSpell", "$PSQ_EnableSuccubusDrainHealthSpell", PSQ.EnableSuccubusDrainHealthSpell, AbilityFlags)
     Self.AddToggleOptionST("EnableSuccubusDrainStaminaSpell", "$PSQ_EnableSuccubusDrainStaminaSpell", PSQ.EnableSuccubusDrainStaminaSpell, AbilityFlags)
     Self.AddToggleOptionST("EnableSuccubusDrainFF", "$PSQ_EnableSuccubusDrainFF", PSQ.EnableSuccubusDrainFF, AbilityFlags)
@@ -3699,7 +3693,9 @@ Function DrawCompatibilityPage()
     Self.AddTextOption("UBE 服装与淫纹", "需对应 UBE 资源版本", 1)
   EndIf
   Self.CompatibilityRow("SLSO", Self.CompatibilityPluginLoaded("SLSO.esp"))
-  Self.CompatibilityRow("Apropos 2（撕裂损伤修复）", PSQ.HasAproposRepairIntegration())
+  If PSQ.IsAproposRepairPatchInstalled()
+    Self.CompatibilityRow("Apropos 2（撕裂损伤修复）", PSQ.HasAproposRepairIntegration())
+  EndIf
   Self.CompatibilityRow("TDF", Self.CompatibilityPluginLoaded("SexLab TDF Aggressive Prostitution.esp"))
   Self.CompatibilityRow("TDF Enhanced", Self.CompatibilityPluginLoaded("TDF Enhanced Prostitution.esp"))
   Self.CompatibilityRow("Fill Her Up", Self.CompatibilityPluginLoaded("sr_FillHerUp.esp"))
@@ -3846,10 +3842,9 @@ Function OnOptionMenuOpen(Int Option)
     Self.SetMenuDialogStartIndex(PSQ.GetDigestionMode())
     Self.SetMenuDialogDefaultIndex(1)
   ElseIf Option == SatiationModeOption
-    String[] SatiationModes = new String[3]
+    String[] SatiationModes = new String[2]
     SatiationModes[0] = "$PSQ_SatiationOff"
-    SatiationModes[1] = "$PSQ_SatiationManual"
-    SatiationModes[2] = "$PSQ_SatiationRank"
+    SatiationModes[1] = "$PSQ_SatiationXPMode"
     Self.SetMenuDialogOptions(SatiationModes)
     Self.SetMenuDialogStartIndex(PSQ.GetSatiationEffectMode())
     Self.SetMenuDialogDefaultIndex(0)
@@ -3965,10 +3960,8 @@ Function OnOptionDefault(Int Option)
 EndFunction
 
 String Function GetSatiationModeName(Int Mode)
-  If Mode == 1
-    Return "$PSQ_SatiationManual"
-  ElseIf Mode == 2
-    Return "$PSQ_SatiationRank"
+  If Mode != 0
+    Return "$PSQ_SatiationXPMode"
   EndIf
   Return "$PSQ_SatiationOff"
 EndFunction

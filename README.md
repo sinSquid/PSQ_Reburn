@@ -4,10 +4,11 @@ PSQ Reburn 是《上古卷轴 V：天际特别版》的魅魔系统模组，基�
 
 成为魅魔，在普通形态与魅魔形态之间切换，通过吸取能量成长，并搭配自己喜欢的外观与服装。
 
-**当前版本：v0.28**  
-[下载 PSQ Reburn](https://github.com/StoneAR-Tank/PSQ_Reburn/releases/tag/v0.28)
+**当前 fork：v0.29，修订65**
 
-下载页面提供 PSQ 本体。想使用独立服装、飞行或其他可选功能，请另外安装对应模组。v0.28 的部分改动还需要进一步进行游戏内验证。
+[上游 v0.29 发行页面](https://github.com/StoneAR-Tank/PSQ_Reburn/releases/tag/v0.29)（上游安装包不包含本 fork 的全部修复及 Helena-only／AWU 调整）。
+
+本 fork 保留当前本体安装布局，整合上游 v0.29 的玩法更新；独立服装、飞行及其他前置仍需另装。`Optional` 中的组件需要按说明单独选择，不会自动生效。部分改动尚需游戏内验证。
 
 ## 功能介绍
 
@@ -17,8 +18,11 @@ PSQ Reburn 是《上古卷轴 V：天际特别版》的魅魔系统模组，基�
 - **身形与皮肤切换**：配合 Body Change NG，为不同形态选择身形和皮肤。
 - **扶她外观**：配合 TRX 扶她模组，为不同形态选择外观。
 - **其他功能**：包含魅魔纹身、法阵、眷属和使魔等内容，并支持部分其他模组的联动。
+- **魅魔商人与饱食经验**：商人资金随魅魔等级增长；可开启饥饿／正常／饱足三档经验修正，旧饱食属性加减已退役。
 
 游戏内可通过 MCM 菜单调整设置。可用的外观和联动功能取决于已安装的模组。
+
+[查看魅魔等级与能力表](docs/succubus-ranks.md)。本 fork 的服装目录仍只提供 Helena，独立翅膀使用 AWU；图表不代表其他上游套装已恢复。
 
 ## 前置需求
 
@@ -40,6 +44,8 @@ PSQ Reburn 是《上古卷轴 V：天际特别版》的魅魔系统模组，基�
 - **身形和皮肤切换**：Body Change NG 1.3.8 及其前置。PSQ 提供对应的兼容文件，但仍需单独安装 Body Change NG 本体。
 - **扶她外观**：SOS - TRX - Futanari Addon 及其前置。不安装时，扶她外观功能不可用。
 - **飞行**：Wingflight 或 OSYRN 及其前置，需单独安装并使用其菜单和按键。
+- **独立翅膀**：Animated Wings Ultimate 1.3.0（No Flying Mod Integration），PSQ 菜单读取83种可装备翼，保留 AWU 的47号槽。服装翼仍为45号槽。
+- **Apropos 2 损伤修复**：默认关闭；启用 Apropos 2 后，再将 `Optional/90-Apropos修复` 内的内容合并到本体根目录覆盖。取消时需移除该组件提供的标记，并恢复核心空实现；详见安装说明。
 - **能量感知、眷属眼睛等功能**：powerofthree's Papyrus Extender 及其前置。
 - **其他联动**：FHU、SLSO、UIExtensions、EFF／NFF、iNeed、Mannaz 等可根据需要安装。
 
@@ -76,7 +82,7 @@ MO2 **右侧插件列表**需要另外检查：启用所需的服装插件，并
 ## 安装与升级
 
 1. 结束互动、退出变身和飞行，在安全地点保存游戏，并备份存档。
-2. 安装所需前置和 PSQ Reburn v0.28，停用旧版 PSQ 及旧的 PSQ 累积补丁。
+2. 安装所需前置和本 fork 的 PSQ Reburn v0.29 修订65，停用旧版 PSQ 及旧的 PSQ 累积补丁。此仓库没有 FOMOD 安装器，按说明选择 `Optional` 组件。
 3. 根据需要安装服装、Body Change NG、TRX 或飞行模组，并按上方建议检查 MO2 排序。
 4. 重新启动游戏，在 PSQ 的 MCM 菜单中检查设置和兼容状态，再尝试变身。
 
