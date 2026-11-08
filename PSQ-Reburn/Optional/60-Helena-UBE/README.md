@@ -8,4 +8,6 @@ BodySlide 中使用 `PSQ UBE Outfits` 下的六个“海伦娜魅魔”工程。
 
 ESP 保留上游 v0.29 原件，其中包含其他服装的被动记录。本目录只提供 Helena 资源，PSQ 菜单也只启用 Helena；其他记录不构成完整服装支持。未引入 DX 变体插件。
 
-来源：StoneAR-Tank/PSQ_Reburn，提交 `54575f64f9047bfe113cd34a27e73bdfb161c38f`，精确提取 Helena 运行模型、BodySlide 工程及其共享滑块数据。
+基础来源：StoneAR-Tank/PSQ_Reburn，提交 `54575f64f9047bfe113cd34a27e73bdfb161c38f`，精确提取 Helena 运行模型、BodySlide 工程及其共享滑块数据。
+
+v0.3 fork 修订66将胸甲模型／变形和对应BodySlide工程更新至上游 `bafe114bff095844187c69cbc74d831e22f301eb`：新增默认开启的隐藏 `PSQNoCorsetWings` 滑块，去除胸甲附带翼。请重新构建Helena工程，避免旧个人输出覆盖此修正；独立服装翼仍为45槽。新UBE纹样贴图随核心提供，不改变本组件的外部身体与服装前置。

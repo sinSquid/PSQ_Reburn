@@ -1,7 +1,7 @@
 {
   "name": "PSQ Reburn",
-  "version": "0.29",
-  "date": "2026-11-08",
+  "version": "0.3",
+  "date": "2026-11-09",
   "channel": "test-release",
   "optional_modules_separate": [
     "Wingflight",
@@ -132,8 +132,8 @@
     "source_tests": 262,
     "game_runtime_tested": false
   },
-  "package_revision": 65,
-  "display_version": "v0.29 fork",
+  "package_revision": 66,
+  "display_version": "v0.3 fork",
   "version_relabel": {
     "date": "2026-10-26",
     "previous_package_label": "0.22",
@@ -1080,8 +1080,8 @@
     "automatic_takeoff_landing_wing_toggle_added": false,
     "game_runtime_tested": false,
     "PEX_sha256": {
-      "playersuccubusquestscript.pex": "bf286a77d319697799d596c225e5d2c28a58b11e19d0834ea637162f831df850",
-      "playersuccubusmenu.pex": "91da4c5dc789c35e06d64ebf2641f84cd92a33b681edcf07ac5c76a4d686886e",
+      "playersuccubusquestscript.pex": "cb43f8b0a1728925caa1f570cddafbe9e51f6f319c71a7df538974cbbcca0a60",
+      "playersuccubusmenu.pex": "7dcdf155e64f756c80b0b246c636a30397a933f28158d155a08a61e414096f79",
       "PSQAWUWings.pex": "8046c41bcc479f6256b183400d9d560399cb99ea9df7f634966948e53196a2fe"
     },
     "pending_wing_restore_preserved_on_reenable": true,
@@ -1128,8 +1128,8 @@
     "external_mods_modified": false,
     "game_runtime_tested": false,
     "PEX_sha256": {
-      "playersuccubusmenu.pex": "91da4c5dc789c35e06d64ebf2641f84cd92a33b681edcf07ac5c76a4d686886e",
-      "playersuccubusquestscript.pex": "bf286a77d319697799d596c225e5d2c28a58b11e19d0834ea637162f831df850",
+      "playersuccubusmenu.pex": "7dcdf155e64f756c80b0b246c636a30397a933f28158d155a08a61e414096f79",
+      "playersuccubusquestscript.pex": "cb43f8b0a1728925caa1f570cddafbe9e51f6f319c71a7df538974cbbcca0a60",
       "PSQAWUWings.pex": "8046c41bcc479f6256b183400d9d560399cb99ea9df7f634966948e53196a2fe",
       "PSQDXUBE.pex": "bd07f57c3e638ca53168fecfcd8e0fc08b9b5bf281d70d6b0648654e9a8e7ca3",
       "psqhenshintargeteffectscript.pex": "28e8f1c16ca0214a178162db35ecd94e195f8d16eec3e429c563c0fbde0de456"
@@ -1173,8 +1173,8 @@
     "current_BCNG_DLL_sha256": "85d1c8c66fda45d21a78bb9d12650e581dcd93209642e7791226c5ebc2795a17",
     "current_BCNG_source_archive_sha256": "a6fa8bdb2ed1cb9b4648fff3297af3da0708f09a06cb03938519fc4319f59d13",
     "PEX_sha256": {
-      "playersuccubusmenu.pex": "91da4c5dc789c35e06d64ebf2641f84cd92a33b681edcf07ac5c76a4d686886e",
-      "playersuccubusquestscript.pex": "bf286a77d319697799d596c225e5d2c28a58b11e19d0834ea637162f831df850",
+      "playersuccubusmenu.pex": "7dcdf155e64f756c80b0b246c636a30397a933f28158d155a08a61e414096f79",
+      "playersuccubusquestscript.pex": "cb43f8b0a1728925caa1f570cddafbe9e51f6f319c71a7df538974cbbcca0a60",
       "psqaproposrepairscript.pex": "c8531f0419891eed201d899bd27457c2252095b255f301888d46d1264585e221"
     },
     "ESM_sha256": "6b22c3be08969ab0578b5151e450ed92a09f2dd49e65d7843c1e1029cacddbaf",
@@ -1193,7 +1193,46 @@
     "persistent_layout_byte_identical": true,
     "official_target_compile": true,
     "full_source_rebuild": false,
-    "PEX_sha256": "bf286a77d319697799d596c225e5d2c28a58b11e19d0834ea637162f831df850",
+    "PEX_sha256": "cb43f8b0a1728925caa1f570cddafbe9e51f6f319c71a7df538974cbbcca0a60",
+    "game_runtime_tested": false
+  },
+  "upstream_v03_integration_20261109": {
+    "fork_baseline": "926e2ebb43772fdccf24b1fb6574cadd96ad62a0",
+    "previous_upstream": "54575f64f9047bfe113cd34a27e73bdfb161c38f",
+    "upstream": "bafe114bff095844187c69cbc74d831e22f301eb",
+    "integration": "selective_function_record_and_asset_migration",
+    "only_clothing_provider": "Helena Succubus [SE].esp",
+    "Helena_choice": 2,
+    "AWU_armor_wings": 83,
+    "AWU_slot": 47,
+    "Helena_wing_slot": 45,
+    "upstream_AWU_spell_controller_imported": false,
+    "UBE_body_tattoo_textures": 18,
+    "Helena_cuirass_attached_wings_removed": true,
+    "on_demand_eye_and_selected_outfit_TRI_diagnostics": true,
+    "new_main_raw_fields": {
+      "WingflightHasFlyingVar": false,
+      "WingflightHasHoverVar": false,
+      "WingflightHasTakeoffVar": false,
+      "WingflightHasLandingVar": false,
+      "WingflightHasPSQVar": false,
+      "BCNGBodyAPIVerifiedLoad": -1
+    },
+    "existing_variables_and_properties_preserved": true,
+    "final_and_deferred_refill_fix_preserved": true,
+    "apropos_default_enabled": false,
+    "core_installation_layout": "flat_core_with_explicit_optional_components",
+    "ESM_change": "Remove retired GushLarge and GushSmall QUST VMAD bindings only",
+    "PEX_sha256": {
+      "playersuccubusmenu.pex": "7dcdf155e64f756c80b0b246c636a30397a933f28158d155a08a61e414096f79",
+      "playersuccubusquestscript.pex": "cb43f8b0a1728925caa1f570cddafbe9e51f6f319c71a7df538974cbbcca0a60",
+      "succubusheshinnscript.pex": "d08274e721231820fc853f5441b833217af1a9ff9949ceae605361605c378de2"
+    },
+    "ESM_sha256": "c20113df29ee00be6a106e48475fd73d33068b9ad822479f184818ae4a9b5c19",
+    "BCNG_DLL_sha256": "85d1c8c66fda45d21a78bb9d12650e581dcd93209642e7791226c5ebc2795a17",
+    "BCNG_source_archive_sha256": "a6fa8bdb2ed1cb9b4648fff3297af3da0708f09a06cb03938519fc4319f59d13",
+    "full_source_rebuild": false,
+    "external_mods_modified": false,
     "game_runtime_tested": false
   }
 }
